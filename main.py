@@ -18,8 +18,7 @@ from sentence_transformers import SentenceTransformer
 GEMINI_API_KEY = ""
 llm = None
 qdrant_client = QdrantClient(
-    "https://cc26f7ca-7c42-422a-98cd-32bde9b9e55e.us-east4-0.gcp.cloud.qdrant.io",
-    api_key="e4Vu9XWDsLn3qQtECf9WP407oB2vdhSFU6p5xkCOGq0R8OIpYGlHGQ",
+
 )
 patient_info = ""
 check_first = False
