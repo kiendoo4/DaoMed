@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DoctorGPT</title>
+  <link rel="shortcut icon" href="/static/icon/doctor.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class = "first-title">
+      <i class="fa fa-stethoscope" style="font-size:50px"></i>DoctorGPT
+    <p class = "first-introduction" style="font-family:Roboto Mono;font-size:15px;margin-top:0px">
+        From&nbsp;<i class="fa fa-linkedin-square"></i><a href="https://www.linkedin.com/in/kiendoo4/" target="_blank">kiendoo4</a>&nbsp;with love :>
+    </p>
+    </h1>
+    <div class = "before-first">
+      <p class = "first-introduction" >
+        Tôi là DoctorGPT, trợ lý ảo giúp bạn giải đáp những câu hỏi, thắc mắc liên quan đến Y học.
+      </p>
+    </div>
+    <p style="font-family: Roboto Condensed;font-size:1.17em;">Vui lòng điền Gemini API key:
+      <input style="font-family: Roboto Condensed" type="password" id="apiKeyInput" placeholder="Gemini API Key" >
+    </p>
+    <div class = "button-area">
+      <button id="guideButton" onclick="window.open('https://aistudio.google.com/app/apikey', '_blank') || window.location.replace('https://aistudio.google.com/app/apikey')">Đường dẫn lấy API</button>
+      <button id="confirmButton" disabled>Xác nhận</button>
+    </div>
+
+  </div>
+  <div id="popupModal" class="modal">
+      <div class="modal-content">
+        Đang xác minh API key!
+        <div id="errorMessage"></div>
+      </div>
+
+  </div>
+
+  <script src="static/js/script.js"></script>
+<!-- Add this to your HTML -->
+</body>
+</html>

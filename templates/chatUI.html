@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <title>DoctorGPT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="static/css/chatUI-style.css">
+    <link rel="shortcut icon" href="static/icon/doctor.ico">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="chat-container light-mode">
+        <div class="chat-content">
+            <div class="chat-header">
+                <div class="first-title">
+                    <i class="fa fa-stethoscope" style="font-size:25px"></i>DoctorGPT
+                </div>
+                <div class="mode-toggle">
+                    <label class="switch">
+                        <input type="checkbox"
+                               id="mode-toggle-checkbox">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="chat-box" id="chat-box"></div>
+            <div class="input-container">
+                <textarea type="text" id="user-input"
+                       placeholder="Type your message..."></textarea>
+                <button id="send-button">
+                  <img src="static/icon/icons8-send-64.png" alt="Send" class="send-icon"/>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/mainUI.js"></script>
+</body>
+
+</html>
