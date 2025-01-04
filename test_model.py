@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 
 # Load the model from the local directory
-model = SentenceTransformer('...')  # Using the model from local machine
+model = SentenceTransformer('model/vietnamese-bi-encoder')  # Using the model from local machine
 
 # Example sentence for encoding
 sentence = "Xin chào Việt Nam"

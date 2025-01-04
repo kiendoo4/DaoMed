@@ -25,18 +25,21 @@
         Tôi là DoctorGPT, trợ lý ảo giúp bạn giải đáp những câu hỏi, thắc mắc liên quan đến Y học.
       </p>
     </div>
-    <p style="font-family: Roboto Condensed;font-size:1.17em;">Vui lòng điền Gemini API key:
-      <input style="font-family: Roboto Condensed" type="password" id="apiKeyInput" placeholder="Gemini API Key" >
+    <p style="font-family: Roboto Condensed;font-size:1.17em;">Tài khoản &nbsp;
+      <input style="font-family: Roboto Condensed" id="usernameInput">
+    </p>
+    <p style="font-family: Roboto Condensed;font-size:1.17em;">Mật khẩu &nbsp;
+      <input style="font-family: Roboto Condensed" type="password" id="passwordInput">
     </p>
     <div class = "button-area">
-      <button id="guideButton" onclick="window.open('https://aistudio.google.com/app/apikey', '_blank') || window.location.replace('https://aistudio.google.com/app/apikey')">Đường dẫn lấy API</button>
-      <button id="confirmButton" disabled>Xác nhận</button>
+      <button id="guideButton" onclick="window.open('https://aistudio.google.com/app/apikey', '_blank') || window.location.replace('https://aistudio.google.com/app/apikey')">Chưa có tài khoản?</button>
+      <button id="confirmButton" disabled>Đăng nhập</button>
     </div>
 
   </div>
   <div id="popupModal" class="modal">
       <div class="modal-content">
-        Đang xác minh API key!
+        Đang xác thực thông tin
         <div id="errorMessage"></div>
       </div>
 

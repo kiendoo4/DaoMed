@@ -1,5 +1,6 @@
 // Get references to the input and display elements
-const apiKeyInput = document.getElementById('apiKeyInput');
+const usernameInput = document.getElementById('usernameInput');
+const passwordInput = document.getElementById('passwordInput');
 const displayKey = document.getElementById('displayKey');
 const confirmButton = document.getElementById('confirmButton');
 const errorMessage = document.getElementById('errorMessage'); // Make sure you have this element in your HTML
@@ -7,14 +8,16 @@ const popupModal = document.getElementById("popupModal");
 // Create a div in your HTML to display response
 const responseDiv = document.getElementById('responseDisplay');
 
-// Listen for input changes
-apiKeyInput.addEventListener('input', () => {
-  displayKey.textContent = `Your API Key: ${apiKeyInput.value}`;
+usernameInput.addEventListener('input', () => {
+  // Enable the "Confirm" button only if the input has characters
+  confirmButton.disabled = usernameInput.value.trim() === "";
+  confirmButton.disabled = passwordInput.value.trim() === "";
 });
 
-apiKeyInput.addEventListener('input', () => {
+passwordInput.addEventListener('input', () => {
   // Enable the "Confirm" button only if the input has characters
-  confirmButton.disabled = apiKeyInput.value.trim() === "";
+  confirmButton.disabled = passwordInput.value.trim() === "";
+  confirmButton.disabled = usernameInput.value.trim() === "";
 });
 
 confirmButton.addEventListener("click", () => {
