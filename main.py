@@ -14,20 +14,40 @@ from langchain_core.messages.base import BaseMessage
 from typing import TypedDict, List, Annotated, Sequence
 from langgraph.graph.message import add_messages
 from sentence_transformers import SentenceTransformer
+import psycopg2
+import bcrypt
+
+def hash_password(password: str) -> str:
+    """
+    Hashes a password using bcrypt.
+    
+    Args:
+        password (str): The plaintext password to hash.
+    
+    Returns:
+        str: The hashed password as a string.
+    """
+    # Convert the password to bytes
+    password_bytes = password.encode('utf-8')
+    # Generate a salt
+    salt = bcrypt.gensalt()
+    # Hash the password
+    hashed_password = bcrypt.hashpw(password_bytes, salt)
+    # Return the hashed password as a string
+    return hashed_password.decode('utf-8')
+
+def check_password(provided_password, stored_hashed_password):
+    return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hashed_password)
 
 GEMINI_API_KEY = ""
 llm = None
-qdrant_client = QdrantClient(
-    "https://cc26f7ca-7c42-422a-98cd-32bde9b9e55e.us-east4-0.gcp.cloud.qdrant.io",
-    api_key="e4Vu9XWDsLn3qQtECf9WP407oB2vdhSFU6p5xkCOGq0R8OIpYGlHGQ",
-)
+qdrant_client = None
 patient_info = ""
 check_first = False
 first_message = """
-Xin chào, tôi là DoctorGPT, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
+Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
 Trước khi bắt đầu, bạn có thể cho tôi một số thông tin về tên, tuổi, năm sinh và giới tính của bạn được không?
 """
-collections = qdrant_client.get_collections()
 trimmer = trim_messages(
     max_tokens = 10,
     strategy="last",
@@ -62,7 +82,7 @@ def retriever(input_text):
 prompt = ChatPromptTemplate.from_messages([
     (
         "system",
-        """Vai trò: Một trợ lý y tế thông minh với năng lực tư vấn chủ đề Y học
+        """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
 
         NGUYÊN TẮC CHÍNH:
         1. Chính xác: Trả lời câu hỏi với những bằng chứng như sau:
@@ -108,6 +128,12 @@ prompt = ChatPromptTemplate.from_messages([
         Thông tin cá nhân được cung cấp từ người hỏi bệnh (nếu có) để phục vụ cho việc trao đổi: {patient_info}.
         
         Hãy CHỈ sử dụng tên người hỏi để phục vụ việc trao đổi một cách lưu loát, CHỈ sử dụng năm sinh/tuổi và giới tính để phục vụ cho việc phỏng đoán tình trạng bệnh!
+
+        CHÚ Ý: 
+        
+        - Tránh việc trả lời các câu hỏi không liên quan đến chủ đề Y học, hãy gợi ý người dùng hỏi các câu hỏi liên quan đến Y học!
+
+        - Nếu người hỏi có câu hỏi mang tính xúc phạm, lăng mạ, chửi tục, hãy từ chối trả lời!
         """
     ),
     MessagesPlaceholder(variable_name="messages"),
@@ -195,7 +221,7 @@ def get_initial_message():
     global first_message
     return jsonify({"response": first_message})
 
-@app.route('/get-gemini-apikey', methods = ['POST'])
+@app.route('/get-gemini-apikey', methods = ['GET'])
 def get_gemini_apikey():
     global GEMINI_API_KEY, llm
     data = request.get_json()
@@ -213,6 +239,51 @@ def get_gemini_apikey():
     else:
         return jsonify({"success": False, "error": "API key is missing"}), 400
 
+@app.route('/validate-account', methods = ["POST"])
+def validate_account():
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
+        if not username or not password:
+            return jsonify({"isValid": False, "message": "Something is missing"}), 400
+        else:
+            cur.execute("SELECT password_hash FROM users WHERE username = %s or email = %s", (username, username,))
+            user = cur.fetchone()
+            if user:
+                stored_hashed_password = user[0].encode('utf-8')
+                if check_password(password, stored_hashed_password):
+                    return jsonify({"isValid": True, "message": "Đăng nhập thành công", "user": {"username": username}})
+                return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
+            return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
+            
+    except Exception as e:
+        print("Có lỗi xảy ra trong quá trình đăng nhập", str(e))
+        return jsonify({"isValid": False, "message": "Có lỗi xảy ra trong quá trình đăng nhập"}), 500
+
+def setup():
+    global apikey_list, GEMINI_API_KEY, QDRANT_LINK, QDRANT_API_KEY, POSTGRES_KEY, con, cur, qdrant_client, llm
+    with open("apikey\\apikey.txt", 'r') as file:
+        apikey_list = [line.strip() for line in file.readlines()]
+    GEMINI_API_KEY = apikey_list[0]
+    POSTGRES_KEY = apikey_list[1]
+    QDRANT_LINK = apikey_list[2]
+    QDRANT_API_KEY = apikey_list[3]
+    con = psycopg2.connect(POSTGRES_KEY)
+    cur = con.cursor()
+    qdrant_client = QdrantClient(QDRANT_LINK, api_key=QDRANT_API_KEY)
+    llm = ChatGoogleGenerativeAI(
+            model="gemini-1.5-pro",
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
+            api_key=GEMINI_API_KEY
+        )
+
 if __name__ == "__main__":
+    setup()
     messages.append(AIMessage(first_message))
     app.run(debug=True)
+    cur.close()
+    con.close()

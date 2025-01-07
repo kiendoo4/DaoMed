@@ -8,21 +8,17 @@ const popupModal = document.getElementById("popupModal");
 // Create a div in your HTML to display response
 const responseDiv = document.getElementById('responseDisplay');
 
-usernameInput.addEventListener('input', () => {
-  // Enable the "Confirm" button only if the input has characters
-  confirmButton.disabled = usernameInput.value.trim() === "";
-  confirmButton.disabled = passwordInput.value.trim() === "";
-});
+function updateConfirmButtonState() {
+  // Enable the "Confirm" button only if both inputs have characters
+  confirmButton.disabled = usernameInput.value.trim() === "" || passwordInput.value.trim() === "";
+}
 
-passwordInput.addEventListener('input', () => {
-  // Enable the "Confirm" button only if the input has characters
-  confirmButton.disabled = passwordInput.value.trim() === "";
-  confirmButton.disabled = usernameInput.value.trim() === "";
-});
+// Add event listeners for both inputs
+usernameInput.addEventListener('input', updateConfirmButtonState);
+passwordInput.addEventListener('input', updateConfirmButtonState);
 
 confirmButton.addEventListener("click", () => {
   popupModal.style.display = "block";
-
 });
 
 window.addEventListener("click", (event) => {
@@ -37,61 +33,56 @@ window.addEventListener("click", (event) => {
 
 // Handle button click
 confirmButton.addEventListener("click", async () => {
-  const apiKey = apiKeyInput.value.trim();
+  const username = usernameInput.value.trim(); // Get username
+  const password = passwordInput.value.trim(); // Get password
 
   try {
-    // Use the actual Gemini API endpoint for generative AI
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent", {
+    // Send credentials to the backend for validation
+    const response = await fetch("/validate-account", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey // Gemini uses 'x-goog-api-key' header
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: "Hello, can you confirm the API key is working?"
-          }]
-        }]
-      })
+        username: username, // Send username to the backend
+        password: password, // Send password to the backend
+      }),
     });
 
     if (response.ok) {
       // If response is okay, validate the response
       const data = await response.json();
-      // Check if the response contains expected properties
-      if (data.candidates && data.candidates.length > 0) {
-        // API key is valid, proceed to chat interface
-        errorMessage.textContent = "Successfully!!";
+      if (data.isValid) {
+        // Login is successful, proceed to chat interface
+        errorMessage.textContent = "Đăng nhập thành công!";
         errorMessage.style.color = "green";
         errorMessage.style.border = "1px solid green";
         errorMessage.style.display = "block";
-        const backendResponse = await fetch("/get-gemini-apikey", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          apiKey: apiKey  // Send the API key to the backend
-          })
-        }).then(response => response.json())
-          .then(data => console.log(data))
-          .catch(error => console.error("Error:", error));
+
+        // Redirect to the main UI
         window.location.href = "/mainUI";
       } else {
-        throw new Error("Invalid API response");
+        // Invalid credentials
+        errorMessage.textContent = data.message;
+        errorMessage.style.color = "red";
+        errorMessage.style.border = "1px solid red";
+        errorMessage.style.display = "block";
       }
     } else {
-      // Handle API errors
+      // Handle backend errors
       const errorData = await response.json();
       responseDiv.textContent = JSON.stringify(errorData, null, 2);
-      errorMessage.textContent = errorData.error?.message || "Invalid API Key!";
+      errorMessage.textContent = errorData.message || "Có lỗi xảy ra trong quá trình đăng nhập!";
+      errorMessage.style.color = "red";
+      errorMessage.style.border = "1px solid red";
       errorMessage.style.display = "block";
     }
   } catch (error) {
-    // Handle any network or validation errors
+    // Handle network or other unexpected errors
     console.error("Connection error:", error);
-    errorMessage.textContent = "Không thể kết nối đến Gemini. Vui lòng kiểm tra lại API key.";
+    errorMessage.textContent = "Có lỗi xảy ra trong quá trình đăng nhập!";
+    errorMessage.style.color = "red";
+    errorMessage.style.border = "1px solid red";
     errorMessage.style.display = "block";
   }
 });

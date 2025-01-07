@@ -32,6 +32,10 @@ userInput.addEventListener('keydown', (event) => {
     }
 });
 
+document.getElementById('mode-toggle-checkbox').addEventListener('change', function () {
+    document.body.classList.toggle('dark-mode', this.checked);
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     loadInitialMessage();
     const newConversationBtn = document.getElementById('new-conversation-btn');
@@ -72,8 +76,8 @@ function loadInitialMessage() {
     fetch('/get-initial-message')
         .then(response => response.json())
         .then(data => {
-            const doctorAvatarUrl = "static/icon/doctor.png"; // Path to DoctorGPT's avatar image
-            appendMessage('DoctorGPT', data.response, doctorAvatarUrl);
+            const doctorAvatarUrl = "static/icon/doctor.png";
+            appendMessage('DoctorQA', data.response, doctorAvatarUrl);
         })
         .catch(error => console.error('Error fetching initial message:', error));
 }
@@ -83,6 +87,11 @@ function appendMessage(sender, message, imageUrl) {
     const messageContainer = document.createElement('div');
     messageContainer.classList.add('message-container');
     messageContainer.setAttribute('aria-label', `Message from ${sender}`);
+
+    // Check if dark mode is active and apply specific styling for Messi
+    if (document.body.classList.contains('dark-mode') && sender === 'Messi') {
+        messageContainer.classList.add('dark-messi-message');
+    }
 
     // Create a wrapper for avatar and name
     const avatarWrapper = document.createElement('div');
@@ -122,6 +131,7 @@ function appendMessage(sender, message, imageUrl) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+
 function getResponse(message) {
     const botAvatarUrl = "static/icon/doctor.png"; // Add chatbot avatar image path
     fetch('/get-response', {
@@ -132,10 +142,10 @@ function getResponse(message) {
     .then(response => response.json())
     .then(data => {
         const botResponse = data.response;
-        setTimeout(() => appendMessage('DoctorGPT', botResponse, botAvatarUrl), 1000);
+        setTimeout(() => appendMessage('DoctorQA', botResponse, botAvatarUrl), 1000);
     })
     .catch(error => {
         console.error("Error fetching response:", error);
-        appendMessage('DoctorGPT', "Sorry, something went wrong.", botAvatarUrl);
+        appendMessage('DoctorQA', "Sorry, something went wrong.", botAvatarUrl);
     });
 }
