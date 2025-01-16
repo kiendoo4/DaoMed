@@ -6,11 +6,13 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
     MessagesPlaceholder,
 )
+from langchain.chains import LLMChain
 from qdrant_client import QdrantClient, models
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, trim_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages.base import BaseMessage
+from langchain.prompts import PromptTemplate
 from typing import TypedDict, List, Annotated, Sequence
 from langgraph.graph.message import add_messages
 from sentence_transformers import SentenceTransformer
@@ -46,7 +48,7 @@ def check_password(provided_password, stored_hashed_password):
 GEMINI_API_KEY = ""
 llm = None
 qdrant_client = None
-patient_info = ""
+first_rep = ""
 check_first = False
 user_avatar = None
 first_message = """
@@ -90,8 +92,9 @@ prompt = ChatPromptTemplate.from_messages([
         """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
 
         NGUYÊN TẮC CHÍNH:
-        1. Chính xác: CHỈ trả lời câu hỏi với những bằng chứng như sau:
+        1. Chính xác: CHỈ ĐƯỢC trả lời câu hỏi với những bằng chứng như sau:
         {context}
+        Không được cung cấp câu trả lời nếu không có bằng chứng!
         2. Giao tiếp: Rõ ràng - Khoa học
         3. An toàn: Bảo vệ sức khỏe người dùng
 
@@ -129,7 +132,7 @@ prompt = ChatPromptTemplate.from_messages([
 
         Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
 
-        Thông tin cá nhân được cung cấp từ người hỏi bệnh (nếu có) để phục vụ cho việc trao đổi: {patient_info}.
+        Hãy sử dụng thông tin cá nhân được cung cấp từ người hỏi bệnh (nếu có) để phục vụ cho việc trao đổi.
         
         Hãy CHỈ sử dụng tên người hỏi để phục vụ việc trao đổi một cách lưu loát, CHỈ sử dụng năm sinh/tuổi và giới tính để phục vụ cho việc phỏng đoán tình trạng bệnh!
 
@@ -143,6 +146,14 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="messages"),
 ])
 
+name_chatlog_prompt = PromptTemplate(
+    input_variables=["first_rep"],
+    template=(
+        "Đây là câu chat đầu tiên của người dùng trong chat log mới: '{first_rep}', "
+        "Hãy đặt một tiêu đề ngắn gọn và xúc tích cho chatlog mới này."
+    ),
+)
+
 class State(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     current_query: str
@@ -155,15 +166,15 @@ def call_model(state: State):
     formatted_prompt = prompt.invoke(
         {"context": context,  # Pass the context to the template
         "input": state["current_query"],   # Replace with the actual user query
-        "messages": trimmed_messages,
-        "patient_info": patient_info}  # Include the trimmed messages
+        "messages": trimmed_messages}  # Include the trimmed messages
     )
     # Call the LLM with the formatted prompt
     response = llm.invoke(formatted_prompt)
     # Append the AI response to the state
     return {"messages": [response], "current_query": state["current_query"]}
 
-global config, messages
+global config, messages, current_user
+current_user = ""
 config = {"configurable": {"thread_id": "1"}}
 messages = []
 workflow = StateGraph(state_schema=State)
@@ -207,15 +218,41 @@ def process_text():
 
 @app.route('/get-response', methods = ['POST'])
 def get_response():
-    global llm, patient_info, check_first
+    global llm, first_rep, check_first
     data = request.json
     user_message = data.get("message", "")
     if not llm:
         return jsonify({"error": "Gemini API key is not set."}), 400
     query = HumanMessage(content=user_message)
     if check_first is False:
-        patient_info = user_message
+        first_rep = user_message
         check_first = True
+        chain = LLMChain(llm=llm, prompt=name_chatlog_prompt)
+        chatlog_name = chain.run({"first_rep": first_rep}).strip()
+        cur.execute("""
+        INSERT INTO conversations (user_id, topic)
+        VALUES (%s, %s)
+        """, (current_user[0], chatlog_name))
+
+        cur.execute("""
+            SELECT id FROM conversations WHERE topic = %s AND user_id = %s
+        """, (chatlog_name, current_user[0]))
+        conversation_id = cur.fetchone()[0]
+
+        cur.execute("""
+            INSERT INTO messages (conversation_id, sender, message)
+            VALUES (%s, %s, %s)
+        """, (conversation_id, 'bot', first_message))
+
+        # Insert the first message into the messages table
+        cur.execute("""
+            INSERT INTO messages (conversation_id, sender, message)
+            VALUES (%s, %s, %s)
+        """, (conversation_id, 'user', first_rep))
+
+        # Commit the changes to the database
+        con.commit()
+
     messages.append(query)
     state = {
         "messages": messages,
@@ -255,6 +292,7 @@ def get_gemini_apikey():
 
 @app.route('/validate-account', methods = ["POST"])
 def validate_account():
+    global current_user
     try:
         data = request.json
         username = data.get('username')
@@ -262,14 +300,14 @@ def validate_account():
         if not username or not password:
             return jsonify({"isValid": False, "message": "Something is missing"}), 400
         else:
-            cur.execute("SELECT password_hash, profile_image FROM users WHERE username = %s or email = %s", (username, username,))
+            cur.execute("SELECT id, password_hash, profile_image FROM users WHERE username = %s or email = %s", (username, username,))
             user = cur.fetchone()
             if user:
-                stored_hashed_password = user[0].encode('utf-8')
+                current_user = user
+                stored_hashed_password = user[1].encode('utf-8')
                 if check_password(password, stored_hashed_password):
-                    user_avatar_base64 = base64.b64encode(user[1]).decode('utf-8')
+                    user_avatar_base64 = base64.b64encode(user[2]).decode('utf-8')
                     session['user_avatar'] = user_avatar_base64
-                    print(user_avatar_base64)
                     return jsonify({"isValid": True, "message": "Đăng nhập thành công", "user": {"username": username}})
                 return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
             return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
