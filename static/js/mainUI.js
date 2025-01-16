@@ -8,7 +8,33 @@ const chatarea = document.getElementById('multi-chat');
 const chatareaButton = document.getElementById('chatarea-button');
 const closemulti = document.getElementById('close-multi-chat');
 const chatbox = document.getElementById('chat-box');
-const inputContainer = document.getElementById('input-container-box')
+const inputContainer = document.getElementById('input-container-box');
+const addChatlog = document.getElementById('add-new-chatlog');
+const container = document.getElementById("chat-log-list");
+
+const firstMessage = `Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
+Tôi có thể giúp gì cho bạn không?`;
+
+addChatlog.addEventListener('click', function(){
+    chatBox.innerHTML = "";
+    fetch('/new-chat-log', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: "change the first_check"
+        })
+    }).then(response => response.json()).then(data => {
+        // Now call appendMessage as before
+        setTimeout(function() {
+            appendMessage("DoctorQA", firstMessage, "static/icon/doctor.png"); 
+        }, 300);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}, false);
 
 chatareaButton.addEventListener('click', function() {
     chatarea.style.display = "block";
@@ -167,3 +193,60 @@ function getResponse(message) {
         appendMessage('DoctorQA', "Sorry, something went wrong.", botAvatarUrl);
     });
 }
+
+async function loadConversation(conversationId) {
+    try {
+        // Fetch messages from the backend for the given conversation ID
+        const response = await fetch(`/conversations/${conversationId}/messages`);
+        const messages = await response.json();
+
+        // Check if there was an error
+        if (response.status !== 200) {
+            console.error(messages.error || "Failed to load conversation messages");
+            return;
+        }
+
+        // Get the container for displaying messages
+        chatBox.innerHTML = ""; // Clear previous messages
+        setTimeout(function() {
+            messages.forEach(msg => {
+                if (msg.sender === "user") {
+                    // Call appendMessage for user messages
+                    appendMessage("Messi", msg.message, "static/icon/messi.jpg");
+                } else {
+                    // Call appendMessage for bot messages
+                    appendMessage("DoctorQA", msg.message, "static/icon/doctor.png"); 
+                }   
+            });
+        }, 300);
+        // Display each message
+        
+    } catch (error) {
+        console.error("Error loading conversation:", error);
+    }
+}
+
+async function addChatLogButtons() {
+    const response = await fetch('/conversations');
+    const chatLogs = await response.json();
+    chatLogs.reverse();
+    chatLogs.forEach(log => {
+        const button = document.createElement("button");
+        button.id = `${log.id}`;
+        button.classList.add("chatlogBox");
+        button.innerHTML = log.topic;
+        button.style.cursor = "pointer";
+        button.style.whiteSpace = "nowrap"; // Prevent text from wrapping
+        button.style.overflow = "hidden"; // Hide the overflow text
+        button.style.textOverflow = "ellipsis";
+        button.title = log.topic;
+        button.addEventListener("click", () => {
+            loadConversation(log.id);
+        });
+
+        // Append the button to the container
+        container.appendChild(button);
+    });
+}
+
+addChatLogButtons();

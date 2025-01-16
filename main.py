@@ -149,8 +149,11 @@ prompt = ChatPromptTemplate.from_messages([
 name_chatlog_prompt = PromptTemplate(
     input_variables=["first_rep"],
     template=(
-        "Đây là câu chat đầu tiên của người dùng trong chat log mới: '{first_rep}', "
-        "Hãy đặt một tiêu đề ngắn gọn và xúc tích cho chatlog mới này."
+        """Đây là câu chat đầu tiên của người dùng trong chat log mới: '{first_rep}'
+        
+        Hãy đặt một tiêu đề tổng quát cho nội dung của chatlog mới dựa trên câu chat đầu tiên ở trên.
+        
+        Lưu ý: tốt nhất là nhiều hơn 4 từ và ít hơn 8 từ."""
     ),
 )
 
@@ -173,7 +176,7 @@ def call_model(state: State):
     # Append the AI response to the state
     return {"messages": [response], "current_query": state["current_query"]}
 
-global config, messages, current_user
+global config, messages, current_user, current_chatlog
 current_user = ""
 config = {"configurable": {"thread_id": "1"}}
 messages = []
@@ -216,15 +219,24 @@ def process_text():
 
     return jsonify(response)
 
+@app.route('/new-chat-log', methods=['POST'])
+def new_chat_log():
+    global first_check
+    data = request.get_json()
+    message = data.get('message', '')
+    first_check = False
+    return jsonify({"status": "success", "received_message": message})
+
 @app.route('/get-response', methods = ['POST'])
 def get_response():
-    global llm, first_rep, check_first
+    global llm, first_rep, check_first, current_chatlog
     data = request.json
     user_message = data.get("message", "")
     if not llm:
         return jsonify({"error": "Gemini API key is not set."}), 400
     query = HumanMessage(content=user_message)
     if check_first is False:
+        messages.append(AIMessage(first_message))
         first_rep = user_message
         check_first = True
         chain = LLMChain(llm=llm, prompt=name_chatlog_prompt)
@@ -236,6 +248,7 @@ def get_response():
 
         cur.execute("""
             SELECT id FROM conversations WHERE topic = %s AND user_id = %s
+                    
         """, (chatlog_name, current_user[0]))
         conversation_id = cur.fetchone()[0]
 
@@ -252,6 +265,13 @@ def get_response():
 
         # Commit the changes to the database
         con.commit()
+        current_chatlog = conversation_id
+    else:
+        cur.execute("""
+            INSERT INTO messages (conversation_id, sender, message)
+            VALUES (%s, %s, %s)
+        """, (current_chatlog, 'user', user_message))
+        con.commit()
 
     messages.append(query)
     state = {
@@ -265,6 +285,11 @@ def get_response():
         else:
             full_response = "Tôi bị khùm"
     messages.append(AIMessage(full_response))
+    cur.execute("""
+            INSERT INTO messages (conversation_id, sender, message)
+            VALUES (%s, %s, %s)
+        """, (current_chatlog, 'bot', full_response))
+    con.commit()
     return jsonify({"response": full_response})
 
 @app.route('/get-initial-message', methods=['GET'])
@@ -330,6 +355,39 @@ def check_username_route():
     else:
         return jsonify({'exists': False})
 
+@app.route('/conversations', methods=['GET'])
+def get_conversations():
+    user_id = current_user[0]
+    cur.execute("SELECT id, topic FROM conversations WHERE user_id = %s ORDER BY started_at ASC", (user_id,))
+    rows = cur.fetchall()
+    conversations = [{"id": row[0], "topic": row[1]} for row in rows]
+    return jsonify(conversations)
+
+@app.route('/conversations/<int:conversation_id>/messages', methods=['GET'])
+def get_conversation_messages(conversation_id):
+    global current_chatlog
+    # Check if the conversation belongs to the current user
+    user_id = current_user[0]  # Replace with your logic to get the current user's ID
+    cur.execute("SELECT id FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user_id))
+    conversation = cur.fetchone()
+    current_chatlog = conversation_id
+    if not conversation:
+        return jsonify({"error": "Conversation not found or access denied"}), 404
+
+    # Fetch messages for the conversation
+    cur.execute("""
+        SELECT sender, message, timestamp
+        FROM messages
+        WHERE conversation_id = %s
+        ORDER BY timestamp ASC
+    """, (conversation_id,))
+    rows = cur.fetchall()
+
+    messages = [
+        {"sender": row[0], "message": row[1], "timestamp": row[2].isoformat(), "nameUser": current_user[1]} for row in rows
+    ]
+    return jsonify(messages)
+
 def setup():
     global apikey_list, GEMINI_API_KEY, QDRANT_LINK, QDRANT_API_KEY, POSTGRES_KEY, con, cur, qdrant_client, llm
     with open("apikey\\apikey.txt", 'r') as file:
@@ -352,7 +410,6 @@ def setup():
 
 if __name__ == "__main__":
     setup()
-    messages.append(AIMessage(first_message))
     app.run(debug=True)
     cur.close()
     con.close()
