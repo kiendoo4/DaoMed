@@ -4,6 +4,23 @@ const sendButton = document.getElementById('send-button');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const modeToggle = document.getElementById('mode-toggle-checkbox');
 const sidebar = document.querySelector('.sidebar');
+const chatarea = document.getElementById('multi-chat');
+const chatareaButton = document.getElementById('chatarea-button');
+const closemulti = document.getElementById('close-multi-chat');
+const chatbox = document.getElementById('chat-box');
+const inputContainer = document.getElementById('input-container-box')
+
+chatareaButton.addEventListener('click', function() {
+    chatarea.style.display = "block";
+    chatBox.classList.add("shift-right");
+    inputContainer.classList.add("shift-right");
+}, false);
+
+closemulti.addEventListener('click', function() {
+    chatarea.style.display = "none";
+    chatBox.classList.remove("shift-right");
+    inputContainer.classList.remove("shift-right");
+}, false)
 
 modeToggle.addEventListener('change', () => {
     document.body.classList.toggle('dark-mode');
@@ -64,7 +81,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function sendMessage() {
     const message = userInput.value.trim();
     if (message !== '') {
-        const userAvatarUrl = "static/icon/messi.jpg"; // Add user avatar image path
+        const userAvatarElement = document.getElementById('avatar');
+        const userAvatarUrl = "static/icon/messi.jpg"; // Fallback to default
         appendMessage('Messi', message, userAvatarUrl);
         getResponse(message);
         userInput.value = '';

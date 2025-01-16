@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request, jsonify
+from flask import Flask, render_template, url_for, request, jsonify, session
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import (
@@ -16,6 +16,10 @@ from langgraph.graph.message import add_messages
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import bcrypt
+import database
+from PIL import Image
+import io
+import base64
 
 def hash_password(password: str) -> str:
     """
@@ -44,9 +48,10 @@ llm = None
 qdrant_client = None
 patient_info = ""
 check_first = False
+user_avatar = None
 first_message = """
 Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
-Trước khi bắt đầu, bạn có thể cho tôi một số thông tin về tên, tuổi, năm sinh và giới tính của bạn được không?
+Tôi có thể giúp gì cho bạn không?
 """
 trimmer = trim_messages(
     max_tokens = 10,
@@ -85,7 +90,7 @@ prompt = ChatPromptTemplate.from_messages([
         """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
 
         NGUYÊN TẮC CHÍNH:
-        1. Chính xác: Trả lời câu hỏi với những bằng chứng như sau:
+        1. Chính xác: CHỈ trả lời câu hỏi với những bằng chứng như sau:
         {context}
         2. Giao tiếp: Rõ ràng - Khoa học
         3. An toàn: Bảo vệ sức khỏe người dùng
@@ -104,7 +109,6 @@ prompt = ChatPromptTemplate.from_messages([
         - KHÔNG chẩn đoán trực tiếp mà chỉ đưa ra phỏng đoán của mình
         - Phân tích triệu chứng một cách khoa học
         - Gợi ý hướng điều tra y tế tiếp theo
-        - LUÔN khuyến nghị tham vấn chuyên gia y tế
 
         Trường hợp hỏi bệnh nhưng thông tin không đầy đủ:
         - Xác định các chi tiết còn thiếu
@@ -114,7 +118,7 @@ prompt = ChatPromptTemplate.from_messages([
         NGUYÊN TẮC TỐI QUAN TRỌNG:
         - Sức khỏe và quyền lợi của người dùng là trên hết
         - Phương pháp: Tôn trọng - Chính xác - Nhân văn
-        - Khuyến khích tham vấn chuyên gia y tế khi cần thiết
+        - Khuyến nghị tham vấn chuyên gia y tế KHI VÀ CHỈ KHI nhận thấy tình trạng bệnh nhân nghiêm trọng hoặc bản thân không biết câu trả lời
 
         CÂU HỎI CỤ THỂ: {input}
 
@@ -169,6 +173,7 @@ memory = MemorySaver()
 wapp = workflow.compile(checkpointer=memory)
 
 app = Flask(__name__)
+app.secret_key = 'lmeo'
 
 @app.route('/')
 def index():
@@ -176,7 +181,16 @@ def index():
 
 @app.route('/mainUI')
 def mainUI():
-    return render_template('chatUI.html')
+    user_avatar = session.get('user_avatar', None)
+    return render_template('chatUI.html', user_avatar=user_avatar)
+
+@app.route('/registration')
+def registration():
+    return render_template('registration.html')
+
+@app.route('/backLogin')
+def backLogin():
+    return render_template('index.html')
 
 @app.route('/process-text', methods=['POST'])
 def process_text():
@@ -248,11 +262,14 @@ def validate_account():
         if not username or not password:
             return jsonify({"isValid": False, "message": "Something is missing"}), 400
         else:
-            cur.execute("SELECT password_hash FROM users WHERE username = %s or email = %s", (username, username,))
+            cur.execute("SELECT password_hash, profile_image FROM users WHERE username = %s or email = %s", (username, username,))
             user = cur.fetchone()
             if user:
                 stored_hashed_password = user[0].encode('utf-8')
                 if check_password(password, stored_hashed_password):
+                    user_avatar_base64 = base64.b64encode(user[1]).decode('utf-8')
+                    session['user_avatar'] = user_avatar_base64
+                    print(user_avatar_base64)
                     return jsonify({"isValid": True, "message": "Đăng nhập thành công", "user": {"username": username}})
                 return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
             return jsonify({"isValid": False, "message": "Tài khoản hoặc mật khẩu đăng nhập không đúng"}), 401
@@ -260,6 +277,20 @@ def validate_account():
     except Exception as e:
         print("Có lỗi xảy ra trong quá trình đăng nhập", str(e))
         return jsonify({"isValid": False, "message": "Có lỗi xảy ra trong quá trình đăng nhập"}), 500
+
+# Registration
+@app.route('/check_username', methods=['POST'])
+def check_username_route():
+    data = request.json
+    username = data.get('username')
+    if not username:
+        return jsonify({'exists': False})
+    
+    check_acc = database.check_username(cur, username);
+    if check_acc:
+        return jsonify({'exists': True})
+    else:
+        return jsonify({'exists': False})
 
 def setup():
     global apikey_list, GEMINI_API_KEY, QDRANT_LINK, QDRANT_API_KEY, POSTGRES_KEY, con, cur, qdrant_client, llm

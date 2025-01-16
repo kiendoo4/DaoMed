@@ -1,6 +1,7 @@
 # Table Scripts
 from flask import Flask, url_for, request, jsonify
 import requests
+import psycopg2
 
 """
 CREATE TABLE users (
@@ -39,3 +40,24 @@ def validate_account():
     except Exception as e:
         print("Error validating API key:", str(e))
         return jsonify({"isValid": False, "message": "Error validating API key"}), 500
+    
+### Registration: 
+# Check if username exist first, if yes: decline
+# otherwise, insert into table users
+
+def check_username(cur, username):
+    cur.execute("SELECT username FROM users WHERE username = %s", (username,))
+    user = cur.fetchone()
+    if user:
+        return True
+    return False
+
+def user_registration(cur, username, hashed_password, email, avatar):
+    if (check_username(cur, username)):
+        return jsonify({'error': "Username exists"})
+    else:
+        cur.execute("""
+            INSERT INTO users (username, password, email, avatar) 
+            VALUES (%s, %s, %s, %s)
+        """, (username, hashed_password, email, avatar))
+        return jsonify({'success': "User registered successfully"})

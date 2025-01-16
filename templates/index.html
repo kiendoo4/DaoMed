@@ -25,14 +25,18 @@
         Tôi là DoctorQA, trợ lý ảo giúp bạn giải đáp những câu hỏi, thắc mắc liên quan đến Y học.
       </p>
     </div>
-    <p style="font-family: Roboto Condensed;font-size:1.17em;">Tài khoản &nbsp;
-      <input style="font-family: Roboto Condensed" id="usernameInput">
-    </p>
-    <p style="font-family: Roboto Condensed;font-size:1.17em;">Mật khẩu &nbsp;
-      <input style="font-family: Roboto Condensed" type="password" id="passwordInput">
-    </p>
+    <div class="form-container" style="display: flex">
+      <div class="all-label" style="display: flex; width: 30%;flex-direction: column; gap: 15px;">
+        <label for="usernameInput" style="font-family: Roboto Condensed;font-size:1.17em;padding-top: 20px;">Tài khoản</label>
+        <label for="passwordInput" style="font-family: Roboto Condensed;font-size:1.17em;padding-top: 20px;">Mật khẩu</label>
+      </div>
+      <div class="input-all" style="display: flex; width: 70%;flex-direction: column; gap: 0px;">
+        <input id="usernameInput" type="text" style="width: 90%;">
+        <input id="passwordInput" type="password" style="width: 90%;">
+      </div>
+    </div>
     <div class = "button-area">
-      <button id="guideButton" onclick="window.open('https://aistudio.google.com/app/apikey', '_blank') || window.location.replace('https://aistudio.google.com/app/apikey')">Chưa có tài khoản?</button>
+      <button id="guideButton" onclick="window.location.href='/registration';">Chưa có tài khoản?</button>
       <button id="confirmButton" disabled>Đăng nhập</button>
     </div>
 
