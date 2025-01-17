@@ -250,3 +250,10 @@ async function addChatLogButtons() {
 }
 
 addChatLogButtons();
+
+window.onload = () => {
+    const savedState = localStorage.getItem("appState");
+    if (savedState) {
+        restoreAppState(JSON.parse(savedState));
+    }
+};

@@ -266,6 +266,7 @@ def get_response():
         # Commit the changes to the database
         con.commit()
         current_chatlog = conversation_id
+        
     else:
         cur.execute("""
             INSERT INTO messages (conversation_id, sender, message)
