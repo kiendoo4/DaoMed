@@ -221,10 +221,10 @@ def process_text():
 
 @app.route('/new-chat-log', methods=['POST'])
 def new_chat_log():
-    global first_check
+    global check_first
     data = request.get_json()
     message = data.get('message', '')
-    first_check = False
+    check_first = False
     return jsonify({"status": "success", "received_message": message})
 
 @app.route('/get-response', methods = ['POST'])
@@ -232,6 +232,7 @@ def get_response():
     global llm, first_rep, check_first, current_chatlog
     data = request.json
     user_message = data.get("message", "")
+    conversation_details = None
     if not llm:
         return jsonify({"error": "Gemini API key is not set."}), 400
     query = HumanMessage(content=user_message)
@@ -266,8 +267,12 @@ def get_response():
         # Commit the changes to the database
         con.commit()
         current_chatlog = conversation_id
-        
+        conversation_details = {
+            "id": conversation_id,
+            "topic": chatlog_name
+        }
     else:
+        conversation_details = None
         cur.execute("""
             INSERT INTO messages (conversation_id, sender, message)
             VALUES (%s, %s, %s)
@@ -291,7 +296,7 @@ def get_response():
             VALUES (%s, %s, %s)
         """, (current_chatlog, 'bot', full_response))
     con.commit()
-    return jsonify({"response": full_response})
+    return jsonify({"response": full_response, "conversation": conversation_details})
 
 @app.route('/get-initial-message', methods=['GET'])
 def get_initial_message():

@@ -187,10 +187,35 @@ function getResponse(message) {
     .then(data => {
         const botResponse = data.response;
         setTimeout(() => appendMessage('DoctorQA', botResponse, botAvatarUrl), 1000);
+        if (data.conversation) {
+            const { id, topic } = data.conversation;
+
+            // Create a new button for the conversation
+            const button = document.createElement("button");
+            button.id = `${id}`;
+            button.classList.add("chatlogBox");
+            button.innerHTML = topic;
+            button.style.cursor = "pointer";
+            button.style.whiteSpace = "nowrap"; // Prevent text wrapping
+            button.style.overflow = "hidden"; // Hide overflow text
+            button.style.textOverflow = "ellipsis"; // Add ellipsis for long topics
+            button.title = topic;
+
+            // Add click event to load the conversation
+            button.addEventListener("click", () => {
+                loadConversation(id);
+            });
+            const firstChild = container.firstChild;
+            if (firstChild) {
+                container.insertBefore(button, firstChild);
+            } else {
+                container.appendChild(button);
+            }
+        }
     })
     .catch(error => {
         console.error("Error fetching response:", error);
-        appendMessage('DoctorQA', "Sorry, something went wrong.", botAvatarUrl);
+        appendMessage('DoctorQA', error, botAvatarUrl);
     });
 }
 
@@ -250,10 +275,3 @@ async function addChatLogButtons() {
 }
 
 addChatLogButtons();
-
-window.onload = () => {
-    const savedState = localStorage.getItem("appState");
-    if (savedState) {
-        restoreAppState(JSON.parse(savedState));
-    }
-};
