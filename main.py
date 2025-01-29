@@ -198,6 +198,10 @@ def mainUI():
     user_avatar = session.get('user_avatar', None)
     return render_template('chatUI.html', user_avatar=user_avatar)
 
+@app.route('/get_user_avatar')
+def get_user_avatar():
+    return {"user_avatar": session.get('user_avatar', "default_avatar.png")}
+
 @app.route('/registration')
 def registration():
     return render_template('registration.html')
@@ -371,12 +375,13 @@ def get_conversations():
 
 @app.route('/conversations/<int:conversation_id>/messages', methods=['GET'])
 def get_conversation_messages(conversation_id):
-    global current_chatlog
+    global current_chatlog, check_first
     # Check if the conversation belongs to the current user
     user_id = current_user[0]  # Replace with your logic to get the current user's ID
     cur.execute("SELECT id FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user_id))
     conversation = cur.fetchone()
     current_chatlog = conversation_id
+    check_first = True
     if not conversation:
         return jsonify({"error": "Conversation not found or access denied"}), 404
 
