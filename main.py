@@ -1,26 +1,17 @@
 from flask import Flask, render_template, url_for, request, jsonify, session
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
     MessagesPlaceholder,
 )
 from langchain.chains import LLMChain
 from qdrant_client import QdrantClient, models
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, trim_messages
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, MessagesState, StateGraph
-from langchain_core.messages.base import BaseMessage
 from langchain.prompts import PromptTemplate
-from typing import TypedDict, List, Annotated, Sequence
 from langgraph.graph.message import add_messages
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import bcrypt
 import database
-from PIL import Image
-import io
 import base64
 
 def hash_password(password: str) -> str:
@@ -55,14 +46,7 @@ first_message = """
 Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
 Tôi có thể giúp gì cho bạn không?
 """
-trimmer = trim_messages(
-    max_tokens = 10,
-    strategy="last",
-    token_counter=len,
-    include_system=True,
-    allow_partial=True,
-    start_on="human",
-)
+
 model = SentenceTransformer('model/vietnamese-bi-encoder')
 
 def retrieve_relevant_chunks(question, qdrant_client, collection_name, model, top_n):
@@ -157,34 +141,21 @@ name_chatlog_prompt = PromptTemplate(
     ),
 )
 
-class State(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-    current_query: str
-
-def call_model(state: State):
-    # Trim the messages using the trimmer
-    trimmed_messages = trimmer.invoke(state["messages"])
-    context = retriever(state["current_query"])
+def call_model(current_query):
+    history_chat = database.get_chat_history(cur, current_chatlog)
     # Construct the prompt with the trimmed messages
     formatted_prompt = prompt.invoke(
-        {"context": context,  # Pass the context to the template
-        "input": state["current_query"],   # Replace with the actual user query
-        "messages": trimmed_messages}  # Include the trimmed messages
+        {"context": retriever(current_query),
+        "input": current_query,
+        "messages": history_chat}
     )
     # Call the LLM with the formatted prompt
     response = llm.invoke(formatted_prompt)
     # Append the AI response to the state
-    return {"messages": [response], "current_query": state["current_query"]}
+    return {"messages": [response], "current_query": current_query}
 
-global config, messages, current_user, current_chatlog
+global current_user, current_chatlog
 current_user = ""
-config = {"configurable": {"thread_id": "1"}}
-messages = []
-workflow = StateGraph(state_schema=State)
-workflow.add_edge(START, "model")
-workflow.add_node("model", call_model)
-memory = MemorySaver()
-wapp = workflow.compile(checkpointer=memory)
 
 app = Flask(__name__)
 app.secret_key = 'lmeo'
@@ -236,12 +207,11 @@ def get_response():
     global llm, first_rep, check_first, current_chatlog
     data = request.json
     user_message = data.get("message", "")
+    print(user_message)
     conversation_details = None
     if not llm:
         return jsonify({"error": "Gemini API key is not set."}), 400
-    query = HumanMessage(content=user_message)
     if check_first is False:
-        messages.append(AIMessage(first_message))
         first_rep = user_message
         check_first = True
         chain = LLMChain(llm=llm, prompt=name_chatlog_prompt)
@@ -282,19 +252,7 @@ def get_response():
             VALUES (%s, %s, %s)
         """, (current_chatlog, 'user', user_message))
         con.commit()
-
-    messages.append(query)
-    state = {
-        "messages": messages,
-        "current_query": user_message
-    }
-    full_response = ""
-    for chunk, metadata in wapp.stream(state, config, stream_mode="messages"):
-        if isinstance(chunk, AIMessage):
-            full_response += chunk.content
-        else:
-            full_response = "Tôi bị khùm"
-    messages.append(AIMessage(full_response))
+    full_response = call_model(user_message)['messages'][0].content
     cur.execute("""
             INSERT INTO messages (conversation_id, sender, message)
             VALUES (%s, %s, %s)
@@ -366,7 +324,7 @@ def check_username_route():
         return jsonify({'exists': False})
 
 @app.route('/conversations', methods=['GET'])
-def get_conversations():
+def conversations():
     user_id = current_user[0]
     cur.execute("SELECT id, topic FROM conversations WHERE user_id = %s ORDER BY started_at ASC", (user_id,))
     rows = cur.fetchall()

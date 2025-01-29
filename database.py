@@ -61,3 +61,12 @@ def user_registration(cur, username, hashed_password, email, avatar):
             VALUES (%s, %s, %s, %s)
         """, (username, hashed_password, email, avatar))
         return jsonify({'success': "User registered successfully"})
+    
+def get_chat_history(cur, conversation_id, limit=10):
+    cur.execute(""" 
+        SELECT * FROM messages 
+        WHERE conversation_id = %s
+        LIMIT %s
+        """, (int(conversation_id), int(limit)))
+    chat_history = cur.fetchall()
+    return [{"role": "user" if row[2] == "user" else "assistant", "content": row[3]} for row in chat_history]
