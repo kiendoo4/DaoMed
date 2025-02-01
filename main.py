@@ -4,7 +4,8 @@ from langchain_core.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
 )
-from langchain.chains import LLMChain
+from langchain.chains import LLMChain, SequentialChain
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from qdrant_client import QdrantClient, models
 from langchain.prompts import PromptTemplate
 from langgraph.graph.message import add_messages
@@ -105,20 +106,11 @@ prompt = ChatPromptTemplate.from_messages([
         NGUYÊN TẮC TỐI QUAN TRỌNG:
         - Sức khỏe và quyền lợi của người dùng là trên hết
         - Phương pháp: Tôn trọng - Chính xác - Nhân văn
-        - Khuyến nghị tham vấn chuyên gia y tế KHI VÀ CHỈ KHI nhận thấy tình trạng bệnh nhân nghiêm trọng hoặc bản thân không biết câu trả lời
+        - Khuyến nghị đi đến các cơ sở y tế hoặc tham vấn chuyên gia y tế khi nhận thấy người khám cần được hỗ trợ y tế
 
         CÂU HỎI CỤ THỂ: {input}
 
-        NGUYÊN TẮC TỐI QUAN TRỌNG:
-        - Quyền lợi và sức khỏe của người dùng là trên hết
-        - Tôn trọng - Chính xác - Nhân văn
-        - Luôn khuyến khích tham vấn chuyên gia y tế
-
         Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
-
-        Hãy sử dụng thông tin cá nhân được cung cấp từ người hỏi bệnh (nếu có) để phục vụ cho việc trao đổi.
-        
-        Hãy CHỈ sử dụng tên người hỏi để phục vụ việc trao đổi một cách lưu loát, CHỈ sử dụng năm sinh/tuổi và giới tính để phục vụ cho việc phỏng đoán tình trạng bệnh!
 
         CHÚ Ý: 
         
@@ -152,7 +144,7 @@ def call_model(current_query):
     # Call the LLM with the formatted prompt
     response = llm.invoke(formatted_prompt)
     # Append the AI response to the state
-    return {"messages": [response], "current_query": current_query}
+    return {"messages": response, "current_query": current_query}
 
 global current_user, current_chatlog
 current_user = ""
@@ -207,7 +199,6 @@ def get_response():
     global llm, first_rep, check_first, current_chatlog
     data = request.json
     user_message = data.get("message", "")
-    print(user_message)
     conversation_details = None
     if not llm:
         return jsonify({"error": "Gemini API key is not set."}), 400
@@ -252,7 +243,7 @@ def get_response():
             VALUES (%s, %s, %s)
         """, (current_chatlog, 'user', user_message))
         con.commit()
-    full_response = call_model(user_message)['messages'][0].content
+    full_response = call_model(user_message)['messages'].content
     cur.execute("""
             INSERT INTO messages (conversation_id, sender, message)
             VALUES (%s, %s, %s)

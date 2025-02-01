@@ -1,7 +1,5 @@
 # Table Scripts
 from flask import Flask, url_for, request, jsonify
-import requests
-import psycopg2
 
 """
 CREATE TABLE users (
