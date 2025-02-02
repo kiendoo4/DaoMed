@@ -14,6 +14,7 @@ import psycopg2
 import bcrypt
 import database
 import base64
+import CoT
 
 def hash_password(password: str) -> str:
     """
@@ -77,40 +78,22 @@ prompt = ChatPromptTemplate.from_messages([
         """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
 
         NGUYÊN TẮC CHÍNH:
-        1. Chính xác: CHỈ ĐƯỢC trả lời câu hỏi với những bằng chứng như sau:
+        1. Chính xác: CHỈ ĐƯỢC trả lời câu hỏi với những bằng chứng như sau, SỬ DỤNG VỚI MỨC ĐỘ ƯU TIÊN CAO NHẤT:
         {context}
-        Không được cung cấp câu trả lời nếu không có bằng chứng!
         2. Giao tiếp: Rõ ràng - Khoa học
         3. An toàn: Bảo vệ sức khỏe người dùng
 
-        HƯỚNG DẪN TRẢ LỜI:
-
-        Chào hỏi / Giao tiếp xã giao:
-        - Trả lời lịch sự và thân thiện
-        - Nhẹ nhàng chuyển hướng câu hỏi sang chủ đề y tế để tránh trả lời những vấn đề thuộc một chủ đề khác ngoài Y tế.
-
-        Câu hỏi liên quan đến kiến thức Y học (người hỏi có thể đang học hoặc làm việc trong ngành Y)
-        - Cung cấp thông tin có nguồn gốc, đáng tin cậy, trích nguồn nếu có
-        - Giải thích một cách dễ hiểu
-
-        Trường hợp nghi ngờ chẩn đoán:
-        - KHÔNG chẩn đoán trực tiếp mà chỉ đưa ra phỏng đoán của mình
-        - Phân tích triệu chứng một cách khoa học
-        - Gợi ý hướng điều tra y tế tiếp theo
-
-        Trường hợp hỏi bệnh nhưng thông tin không đầy đủ:
-        - Xác định các chi tiết còn thiếu
-        - Hướng dẫn người dùng cung cấp thông tin chi tiết hơn
-        - Không đưa ra các giả định không có cơ sở
-
-        NGUYÊN TẮC TỐI QUAN TRỌNG:
-        - Sức khỏe và quyền lợi của người dùng là trên hết
-        - Phương pháp: Tôn trọng - Chính xác - Nhân văn
-        - Khuyến nghị đi đến các cơ sở y tế hoặc tham vấn chuyên gia y tế khi nhận thấy người khám cần được hỗ trợ y tế
-
-        CÂU HỎI CỤ THỂ: {input}
+        CÂU HỎI: {input}
 
         Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
+
+        Sử dụng kết quả sau khi đã phân tích các bước từ Chain-of-thought, MỨC ĐỘ ƯU TIÊN THẤP HƠN:
+
+        - Loại câu hỏi: {category}
+
+        - Phân tích: {analysis}
+
+        - Đề xuất: {recommendation}
 
         CHÚ Ý: 
         
@@ -133,13 +116,21 @@ name_chatlog_prompt = PromptTemplate(
     ),
 )
 
+medical_qa = CoT.create_medical_qa_chain()
+
 def call_model(current_query):
     history_chat = database.get_chat_history(cur, current_chatlog)
+
+    result = medical_qa({"question": current_query})
+
     # Construct the prompt with the trimmed messages
     formatted_prompt = prompt.invoke(
         {"context": retriever(current_query),
         "input": current_query,
-        "messages": history_chat}
+        "messages": history_chat,
+        "category": result["category"],
+        "analysis": result["analysis"],
+        "recommendation": result["recommendation"]}
     )
     # Call the LLM with the formatted prompt
     response = llm.invoke(formatted_prompt)

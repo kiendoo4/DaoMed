@@ -1,7 +1,7 @@
 ### Sử dụng để thực hiện Chain-of-thought cho việc trả lời hiệu quả hơn
 
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain, SequentialChain
+from langchain.chains import LLMChain
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 llm = ChatGoogleGenerativeAI(
@@ -10,7 +10,7 @@ llm = ChatGoogleGenerativeAI(
             max_tokens=None,
             timeout=None,
             max_retries=2,
-            api_key="..."
+            api_key="AIzaSyAMG7VcpMd5OAX_QYTeFv3t4v4xYD5dBbI"
         )
 
 ### Các bước CoT
@@ -27,8 +27,7 @@ Phân tích triệu chứng từ câu hỏi sau:
 Câu hỏi: {question}
 Hãy liệt kê:
 1. Các nguyên nhân y học có thể
-2. Mức độ nghiêm trọng (thang điểm 1-5)
-3. Khuyến nghị có nên đi khám ngay không
+2. Khuyến nghị có nên đi khám ngay không
 Trả lời chi tiết: """
 
 # 2.2 Hướng dẫn điều trị
@@ -46,11 +45,7 @@ Trả lời chi tiết: """
 medical_knowledge_template = """
 Cung cấp kiến thức y học về:
 Câu hỏi: {question}
-Hãy trình bày:
-1. Giải thích ngắn gọn về vấn đề
-2. Các nghiên cứu khoa học liên quan
-3. Thống kê về tỷ lệ mắc (nếu có)
-4. Các tiến bộ y học gần đây trong lĩnh vực này
+Hãy giải thích ngắn gọn về vấn đề
 Trả lời chi tiết: """
 
 # 2.4 Hướng dẫn dự phòng
@@ -222,12 +217,14 @@ def create_medical_qa_chain():
         }
     
     return combine_chains
-
+"""
 print("let's CoT")
 # Sử dụng chain tổng hợp
 medical_qa = create_medical_qa_chain()
-result = medical_qa({"question": "Tôi bị đau đầu liên tục 3 ngày nay"})
+result = medical_qa({
+    "question": "Tôi bị đau đầu liên tục 3 ngày nay"})
 
 print(f"Loại câu hỏi: {result['category']}")
 print(f"Phân tích: {result['analysis']}")
 print(f"Đề xuất: {result['recommendation']}")
+"""
