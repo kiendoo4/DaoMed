@@ -122,16 +122,22 @@ def call_model(current_query):
     history_chat = database.get_chat_history(cur, current_chatlog)
 
     result = medical_qa({"question": current_query})
-
+    retrieve_info = retriever(current_query)
     # Construct the prompt with the trimmed messages
     formatted_prompt = prompt.invoke(
-        {"context": retriever(current_query),
+        {"context": retrieve_info,
         "input": current_query,
         "messages": history_chat,
         "category": result["category"],
         "analysis": result["analysis"],
         "recommendation": result["recommendation"]}
     )
+    print({"context": retrieve_info,
+        "input": current_query,
+        "messages": history_chat,
+        "category": result["category"],
+        "analysis": result["analysis"],
+        "recommendation": result["recommendation"]})
     # Call the LLM with the formatted prompt
     response = llm.invoke(formatted_prompt)
     # Append the AI response to the state

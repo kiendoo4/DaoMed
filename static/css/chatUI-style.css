@@ -15,6 +15,43 @@ body {
     }
 }
 
+/* General Styles */
+#think-button {
+    background-color: white; /* No default background */
+    padding: 8px;
+    cursor: pointer;
+    border: 0.1px solid #171717;
+    border-radius: 10px;
+    margin-left: 2%;
+    margin-right: 2%;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+
+}
+
+#think-button:hover {
+    transform: scale(1.1); /* Slight zoom effect on hover */
+}
+
+/* Light Mode */
+#think-button {
+    background-color: #f0f0f0; /* Light gray background */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+}
+
+#think-button .think-icon {
+    filter: invert(0); /* Original icon colors */
+}
+
+/* Dark Mode */
+.dark-mode #think-button {
+    background-color: #333; /* Dark gray background */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Slightly stronger shadow for dark mode */
+}
+
+.dark-mode #think-button .think-icon {
+    filter: invert(1); /* Invert icon colors for dark mode */
+}
+
 #chatarea-button {
     width: 25px;height: 25px;border: none;
     margin-right: 0%;
@@ -112,11 +149,11 @@ body {
 
 /* General Styles */
 #send-button {
-    border: none;
     background-color: transparent; /* No default background */
     padding: 8px;
     cursor: pointer;
-    border-radius: 0%; /* Optional for rounded button */
+    border: 0.1px solid #171717;
+    border-radius: 10px;
     margin-right: 5%;
     transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
 }
@@ -203,14 +240,20 @@ body {
     line-height: 1.5;
     max-height: 150px;
     word-wrap: break-word;
-    margin-left: 5%;
     height: auto;
+    border: 0px;
+    margin-bottom: 1%;
+    outline: none;
+}
+
+#user-input:focus {
+    border: none;
+    outline: none;
 }
 
 .dark-mode #user-input {
     color: #e0e0e0; /* Light gray text for dark mode */
     background-color: #2c2c2c; /* Dark gray background */
-    border: 1px solid #444; /* Darker border for dark mode */
 }
 
 .light-mode {
@@ -469,16 +512,33 @@ input:checked+.slider:before {
     font-size: 16px;
 }
 
+.before-input-container {
+    width: 100vw;
+    margin-bottom: 10px;
+}
+
 .input-container {
     display: flex;
-    padding: 15px;
-    border-top: 0.01px solid #5c5b5b;
+    padding: 5px;
     transition: margin-left 0.3s ease, width 0.3s ease;
+    border: 1px solid #1d1c1c;
+    border-radius: 20px;
+    width: 60vw;
+    margin-left: 20%;
+    flex-direction: column;
+    background-color: white;
+}
+
+.dark-mode .input-container {
+    background-color: #2c2c2c;
+}
+
+#place-buttons {
+    flex-direction:row;
 }
 
 .input-container.shift-right {
-    margin-left: 304px; /* Sidebar width + default margin-left */
-    width: calc(100% - 304px); /* Adjust width to maintain alignment */
+    margin-left: 27%; /* Sidebar width + default margin-left */
 }
 
 input[type="text"] {

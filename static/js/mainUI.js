@@ -15,6 +15,10 @@ const container = document.getElementById("chat-log-list");
 const firstMessage = `Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
 Tôi có thể giúp gì cho bạn không?`;
 
+document.getElementById("think-button").addEventListener("click", function() {
+    this.classList.toggle("active");
+});
+
 addChatlog.addEventListener('click', function(){
     chatBox.innerHTML = "";
     fetch('/new-chat-log', {
