@@ -73,7 +73,7 @@ input {
   justify-content: center;
   text-align: center;
   align-items: center;
-  font-family: Roboto Condensed;
+  font-family: system-ui;
 }
 
 .before-first {

@@ -11,12 +11,21 @@ const chatbox = document.getElementById('chat-box');
 const inputContainer = document.getElementById('input-container-box');
 const addChatlog = document.getElementById('add-new-chatlog');
 const container = document.getElementById("chat-log-list");
+const thinkButton = document.getElementById("think-button");
 
 const firstMessage = `Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
 Tôi có thể giúp gì cho bạn không?`;
 
-document.getElementById("think-button").addEventListener("click", function() {
+thinkButton.addEventListener("click", function() {
     this.classList.toggle("active");
+
+    fetch('/use_CoT', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+    })
+    .then(response => response.json())
+    .then(data => console.log("Toggled check_CoT:", data.check_CoT))
+    .catch(error => console.error("Error:", error));
 });
 
 addChatlog.addEventListener('click', function(){

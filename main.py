@@ -48,6 +48,7 @@ first_message = """
 Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ trợ bạn trả lời và giải đáp những câu hỏi liên quan đến Y học.\n\n
 Tôi có thể giúp gì cho bạn không?
 """
+check_CoT = False
 
 model = SentenceTransformer('model/vietnamese-bi-encoder')
 
@@ -69,10 +70,10 @@ def retrieve_relevant_chunks(question, qdrant_client, collection_name, model, to
 def retriever(input_text):
     # Replace with your collection name and model
     collection_name = "doctor"
-    retrieved_chunks = retrieve_relevant_chunks(input_text, qdrant_client, collection_name, model, 3)
+    retrieved_chunks = retrieve_relevant_chunks(input_text, qdrant_client, collection_name, model, 4)
     return "\n\n".join([chunk for chunk in retrieved_chunks])
 
-prompt = ChatPromptTemplate.from_messages([
+prompt_CoT = ChatPromptTemplate.from_messages([
     (
         "system",
         """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
@@ -105,6 +106,31 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="messages"),
 ])
 
+prompt_no_CoT = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
+
+        NGUYÊN TẮC CHÍNH:
+        1. Chính xác: CHỈ ĐƯỢC trả lời câu hỏi với những bằng chứng như sau, SỬ DỤNG VỚI MỨC ĐỘ ƯU TIÊN CAO NHẤT:
+        {context}
+        2. Giao tiếp: Rõ ràng - Khoa học
+        3. An toàn: Bảo vệ sức khỏe người dùng
+
+        CÂU HỎI: {input}
+
+        Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
+
+        CHÚ Ý: 
+        
+        - Tránh việc trả lời các câu hỏi không liên quan đến chủ đề Y học, hãy gợi ý người dùng hỏi các câu hỏi liên quan đến Y học!
+
+        - Nếu người hỏi có câu hỏi mang tính xúc phạm, lăng mạ, chửi tục, hãy từ chối trả lời!
+        """
+    ),
+    MessagesPlaceholder(variable_name="messages"),
+])
+
 name_chatlog_prompt = PromptTemplate(
     input_variables=["first_rep"],
     template=(
@@ -120,29 +146,33 @@ medical_qa = CoT.create_medical_qa_chain()
 
 def call_model(current_query):
     history_chat = database.get_chat_history(cur, current_chatlog)
-
     result = medical_qa({"question": current_query})
     retrieve_info = retriever(current_query)
     # Construct the prompt with the trimmed messages
-    formatted_prompt = prompt.invoke(
-        {"context": retrieve_info,
-        "input": current_query,
-        "messages": history_chat,
-        "category": result["category"],
-        "analysis": result["analysis"],
-        "recommendation": result["recommendation"]}
-    )
-    print({"context": retrieve_info,
-        "input": current_query,
-        "messages": history_chat,
-        "category": result["category"],
-        "analysis": result["analysis"],
-        "recommendation": result["recommendation"]})
-    # Call the LLM with the formatted prompt
-    response = llm.invoke(formatted_prompt)
-    # Append the AI response to the state
-    return {"messages": response, "current_query": current_query}
-
+    if check_CoT:
+        formatted_prompt = prompt_CoT.invoke(
+            {"context": retrieve_info,
+            "input": current_query,
+            "messages": history_chat,
+            "category": result["category"],
+            "analysis": result["analysis"],
+            "recommendation": result["recommendation"]}
+        )
+        # Call the LLM with the formatted prompt
+        response = llm.invoke(formatted_prompt)
+        # Append the AI response to the state
+        return {"messages": "Sử dụng Chain-of-thought \n\n" + response.content, "current_query": current_query}
+    else:
+        formatted_prompt = prompt_no_CoT.invoke(
+            {"context": retrieve_info,
+            "input": current_query,
+            "messages": history_chat}
+        )
+        # Call the LLM with the formatted prompt
+        response = llm.invoke(formatted_prompt)
+        # Append the AI response to the state
+        return {"messages": response.content, "current_query": current_query}
+    
 global current_user, current_chatlog
 current_user = ""
 
@@ -161,6 +191,13 @@ def mainUI():
 @app.route('/get_user_avatar')
 def get_user_avatar():
     return {"user_avatar": session.get('user_avatar', "default_avatar.png")}
+
+@app.route('/use_CoT', methods=['GET', 'POST'])
+def use_CoT():
+    global check_CoT
+    if request.method == 'POST':
+        check_CoT = not check_CoT
+    return jsonify({"check_CoT": check_CoT})
 
 @app.route('/registration')
 def registration():
@@ -240,7 +277,7 @@ def get_response():
             VALUES (%s, %s, %s)
         """, (current_chatlog, 'user', user_message))
         con.commit()
-    full_response = call_model(user_message)['messages'].content
+    full_response = call_model(user_message)['messages']
     cur.execute("""
             INSERT INTO messages (conversation_id, sender, message)
             VALUES (%s, %s, %s)
@@ -322,11 +359,11 @@ def conversations():
 @app.route('/conversations/<int:conversation_id>/messages', methods=['GET'])
 def get_conversation_messages(conversation_id):
     global current_chatlog, check_first
-    # Check if the conversation belongs to the current user
-    user_id = current_user[0]  # Replace with your logic to get the current user's ID
+    user_id = current_user[0]
     cur.execute("SELECT id FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user_id))
     conversation = cur.fetchone()
     current_chatlog = conversation_id
+    print(current_chatlog)
     check_first = True
     if not conversation:
         return jsonify({"error": "Conversation not found or access denied"}), 404

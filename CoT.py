@@ -10,7 +10,7 @@ llm = ChatGoogleGenerativeAI(
             max_tokens=None,
             timeout=None,
             max_retries=2,
-            api_key="..."
+            api_key="AIzaSyBQ18Z2TTLAzMVlBzrNZ60sS6lL_zx0YPE"
         )
 
 ### Các bước CoT
