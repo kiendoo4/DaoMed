@@ -28,13 +28,13 @@ Users can enhance DoctorQA's responses by applying the Chain-of-Thought strategy
 
 ## Crawling data
 
-I crawled around 30000 trustworthy documents from ([MSDManual][1]) and ([HelloBacSi][2]). I have cleaned the data, chunked the documents, and converted them into vector representations using ([```bkai-foundation-models/vietnamese-bi-encoder```][3]) - a Sentence Embedding model before storing them in Qdrant. The detailed implementation can be found in the file ```./crawled-data-for-doctorqa.ipynb```.
+I crawled around 30000 trustworthy documents from ([MSDManual][1]) and ([HelloBacSi][2]). I have cleaned the data, chunked the documents, and converted them into vector representations using ([bkai-foundation-models/vietnamese-bi-encoder][3]) - a Sentence Embedding model before storing them in Qdrant. The detailed implementation can be found in the file ```./crawled-data-for-doctorqa.ipynb```.
 
 [1]: https://www.msdmanuals.com/vi/professional "MSDManual"
 
 [2]: https://www.msdmanuals.com/vi/professional "HelloBacSi"
 
-[3]: https://huggingface.co/bkai-foundation-models/vietnamese-bi-encoder ```bkai-foundation-models/vietnamese-bi-encoder```
+[3]: https://huggingface.co/bkai-foundation-models/vietnamese-bi-encoder "bkai-foundation-models/vietnamese-bi-encoder"
 
 ## AI-Powered Enhancements
 
