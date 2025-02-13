@@ -4,15 +4,6 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-            api_key="AIzaSyBQ18Z2TTLAzMVlBzrNZ60sS6lL_zx0YPE"
-        )
-
 ### Các bước CoT
 # Bước 1: Xác định loại câu hỏi 
 classify_template = """
@@ -130,59 +121,60 @@ Hãy đề xuất:
 5. Thời điểm cần tìm đến chuyên gia
 Hướng dẫn chi tiết: """
 
-# Tạo các chain riêng cho từng loại
-symptom_chain = LLMChain(llm=llm, prompt=PromptTemplate(
-    input_variables=["question"], template=symptom_template), 
-    output_key="response")
-
-treatment_chain = LLMChain(llm=llm, prompt=PromptTemplate(
-    input_variables=["question"], template=treatment_template),
-    output_key="response")
-
-knowledge_chain = LLMChain(llm=llm, prompt=PromptTemplate(
-    input_variables=["question"], template=medical_knowledge_template),
-    output_key="response")
-
-prevention_chain = LLMChain(llm=llm, prompt=PromptTemplate(
-    input_variables=["question"], template=prevention_template),
-    output_key="response")
-
-social_chain = LLMChain(llm=llm, prompt=PromptTemplate(
-    input_variables=["question"], template=social_template),
-    output_key="response")
-
 classify_prompt = PromptTemplate(input_variables=["question"], template=classify_template)
-classify_chain = LLMChain(llm=llm, prompt=classify_prompt, output_key="category")
-
-# Tạo các chain recommendation
-def create_recommendation_chain(template):
-    prompt = PromptTemplate(
-        input_variables=["question", "analysis"],
-        template=template)
-    return LLMChain(llm=llm, prompt=prompt, output_key="recommendation")
-
-# Map recommendation chains
-recommendation_chains = {
-    "triệu chứng": create_recommendation_chain(symptom_recommendation_template),
-    "điều trị": create_recommendation_chain(treatment_recommendation_template),
-    "kiến thức y học": create_recommendation_chain(knowledge_recommendation_template),
-    "dự phòng": create_recommendation_chain(prevention_recommendation_template),
-    "xã giao": create_recommendation_chain(social_recommendation_template)
-}
-
-# Hàm chọn chain phù hợp dựa trên category
-def select_chain(category):
-    chain_map = {
-        "triệu chứng": symptom_chain,
-        "điều trị": treatment_chain,
-        "kiến thức y học": knowledge_chain,
-        "dự phòng": prevention_chain,
-        "xã giao": social_chain
-    }
-    return chain_map.get(category.strip().lower())
 
 # Hàm tổng hợp cập nhật
-def create_medical_qa_chain():
+def create_medical_qa_chain(llm):
+    # Tạo các chain riêng cho từng loại
+    symptom_chain = LLMChain(llm=llm, prompt=PromptTemplate(
+        input_variables=["question"], template=symptom_template), 
+        output_key="response")
+
+    treatment_chain = LLMChain(llm=llm, prompt=PromptTemplate(
+        input_variables=["question"], template=treatment_template),
+        output_key="response")
+
+    knowledge_chain = LLMChain(llm=llm, prompt=PromptTemplate(
+        input_variables=["question"], template=medical_knowledge_template),
+        output_key="response")
+
+    prevention_chain = LLMChain(llm=llm, prompt=PromptTemplate(
+        input_variables=["question"], template=prevention_template),
+        output_key="response")
+
+    social_chain = LLMChain(llm=llm, prompt=PromptTemplate(
+        input_variables=["question"], template=social_template),
+        output_key="response")
+    
+    classify_chain = LLMChain(llm=llm, prompt=classify_prompt, output_key="category")
+
+    # Tạo các chain recommendation
+    def create_recommendation_chain(template, llm):
+        prompt = PromptTemplate(
+            input_variables=["question", "analysis"],
+            template=template)
+        return LLMChain(llm=llm, prompt=prompt, output_key="recommendation")
+
+    # Map recommendation chains
+    recommendation_chains = {
+        "triệu chứng": create_recommendation_chain(symptom_recommendation_template, llm),
+        "điều trị": create_recommendation_chain(treatment_recommendation_template, llm),
+        "kiến thức y học": create_recommendation_chain(knowledge_recommendation_template, llm),
+        "dự phòng": create_recommendation_chain(prevention_recommendation_template, llm),
+        "xã giao": create_recommendation_chain(social_recommendation_template, llm)
+    }
+
+    # Hàm chọn chain phù hợp dựa trên category
+    def select_chain(category):
+        chain_map = {
+            "triệu chứng": symptom_chain,
+            "điều trị": treatment_chain,
+            "kiến thức y học": knowledge_chain,
+            "dự phòng": prevention_chain,
+            "xã giao": social_chain
+        }
+        return chain_map.get(category.strip().lower())
+    
     def combine_chains(inputs):
         question = inputs["question"]
         

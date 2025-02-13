@@ -49,6 +49,7 @@ Xin chào, tôi là DoctorQA, một trợ lý ảo thông minh có thể hỗ tr
 Tôi có thể giúp gì cho bạn không?
 """
 check_CoT = False
+medical_qa = None
 
 model = SentenceTransformer('model/vietnamese-bi-encoder')
 
@@ -141,8 +142,6 @@ name_chatlog_prompt = PromptTemplate(
         Lưu ý: tốt nhất là nhiều hơn 4 từ và ít hơn 8 từ."""
     ),
 )
-
-medical_qa = CoT.create_medical_qa_chain()
 
 def call_model(current_query):
     history_chat = database.get_chat_history(cur, current_chatlog)
@@ -383,7 +382,7 @@ def get_conversation_messages(conversation_id):
     return jsonify(messages)
 
 def setup():
-    global apikey_list, GEMINI_API_KEY, QDRANT_LINK, QDRANT_API_KEY, POSTGRES_KEY, con, cur, qdrant_client, llm
+    global apikey_list, GEMINI_API_KEY, QDRANT_LINK, QDRANT_API_KEY, POSTGRES_KEY, con, cur, qdrant_client, llm, medical_qa
     with open("apikey\\apikey.txt", 'r') as file:
         apikey_list = [line.strip() for line in file.readlines()]
     GEMINI_API_KEY = apikey_list[0]
@@ -401,6 +400,7 @@ def setup():
             max_retries=2,
             api_key=GEMINI_API_KEY
         )
+    medical_qa = CoT.create_medical_qa_chain(llm)
 
 if __name__ == "__main__":
     setup()
