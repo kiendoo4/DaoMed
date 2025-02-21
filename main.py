@@ -14,7 +14,7 @@ import psycopg2
 import bcrypt
 import database
 import base64
-import CoT
+import CoT_ver2
 
 def hash_password(password: str) -> str:
     """
@@ -74,35 +74,41 @@ def retriever(input_text):
     retrieved_chunks = retrieve_relevant_chunks(input_text, qdrant_client, collection_name, model, 4)
     return "\n\n".join([chunk for chunk in retrieved_chunks])
 
-prompt_CoT = ChatPromptTemplate.from_messages([
+fi_template = ChatPromptTemplate.from_messages([
     (
         "system",
-        """Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
+        """
+
+        Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
 
         NGUYÊN TẮC CHÍNH:
-        1. Chính xác: CHỈ ĐƯỢC trả lời câu hỏi với những bằng chứng như sau, SỬ DỤNG VỚI MỨC ĐỘ ƯU TIÊN CAO NHẤT:
-        {context}
-        2. Giao tiếp: Rõ ràng - Khoa học
-        3. An toàn: Bảo vệ sức khỏe người dùng
+            1. Chính xác: 
+                Đây là các khái niệm Y học, CHỈ ĐƯỢC trả lời câu hỏi với các khái niệm Y học như sau:
+
+                {context}
+                
+                Đây là một số các tình trạng tương tự của các bệnh nhân đã từng mắc phải (sử dụng BM25 để truy vấn), dùng các kết quả này như một nguồn tham khảo cho việc trả lời câu hỏi:
+                
+                {similar_case}
+            
+            2. Giao tiếp: Rõ ràng - Khoa học
+            3. An toàn: Bảo vệ sức khỏe người dùng
 
         CÂU HỎI: {input}
 
+        Let's think step by step. 
+
+        Nếu những thông tin đang có chưa đủ để trả lời người dùng, hãy hỏi người dùng CHỈ 1 hoặc 2 câu hỏi giúp bổ trợ trả lời vấn đề và để họ bổ sung. Ngược lại, hãy giải đáp vấn đề của người hỏi.
+
         Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
 
-        Sử dụng kết quả sau khi đã phân tích các bước từ Chain-of-thought, MỨC ĐỘ ƯU TIÊN THẤP HƠN:
-
-        - Loại câu hỏi: {category}
-
-        - Phân tích: {analysis}
-
-        - Đề xuất: {recommendation}
-
         CHÚ Ý: 
-        
-        - Tránh việc trả lời các câu hỏi không liên quan đến chủ đề Y học, hãy gợi ý người dùng hỏi các câu hỏi liên quan đến Y học!
+                
+            - Tránh việc trả lời các câu hỏi không liên quan đến chủ đề Y học, hãy gợi ý người dùng hỏi các câu hỏi liên quan đến Y học!
 
-        - Nếu người hỏi có câu hỏi mang tính xúc phạm, lăng mạ, chửi tục, hãy từ chối trả lời!
-        """
+            - Nếu người hỏi có câu hỏi mang tính xúc phạm, lăng mạ, chửi tục, hãy từ chối trả lời!
+            
+    """
     ),
     MessagesPlaceholder(variable_name="messages"),
 ])
@@ -119,6 +125,10 @@ prompt_no_CoT = ChatPromptTemplate.from_messages([
         3. An toàn: Bảo vệ sức khỏe người dùng
 
         CÂU HỎI: {input}
+
+        Let's think step by step. 
+
+        Nếu những thông tin đang có chưa đủ để trả lời người dùng, hãy hỏi người dùng CHỈ 1 hoặc 2 câu hỏi giúp bổ trợ trả lời vấn đề và để họ bổ sung. Ngược lại, hãy giải đáp vấn đề của người hỏi.
 
         Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
 
@@ -145,23 +155,13 @@ name_chatlog_prompt = PromptTemplate(
 
 def call_model(current_query):
     history_chat = database.get_chat_history(cur, current_chatlog)
-    result = medical_qa({"question": current_query})
-    retrieve_info = retriever(current_query)
     # Construct the prompt with the trimmed messages
     if check_CoT:
-        formatted_prompt = prompt_CoT.invoke(
-            {"context": retrieve_info,
-            "input": current_query,
-            "messages": history_chat,
-            "category": result["category"],
-            "analysis": result["analysis"],
-            "recommendation": result["recommendation"]}
-        )
-        # Call the LLM with the formatted prompt
-        response = llm.invoke(formatted_prompt)
+        response = CoT_ver2.chain_of_thought(current_query, history_chat, fi_template)
         # Append the AI response to the state
-        return {"messages": "Sử dụng Chain-of-thought \n\n" + response.content, "current_query": current_query}
+        return {"messages": "Sử dụng Chain-of-thought \n\n" + response, "current_query": current_query}
     else:
+        retrieve_info = retriever(current_query)
         formatted_prompt = prompt_no_CoT.invoke(
             {"context": retrieve_info,
             "input": current_query,
@@ -400,7 +400,7 @@ def setup():
             max_retries=2,
             api_key=GEMINI_API_KEY
         )
-    medical_qa = CoT.create_medical_qa_chain(llm)
+    #medical_qa = CoT.create_medical_qa_chain(llm)
 
 if __name__ == "__main__":
     setup()

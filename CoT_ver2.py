@@ -75,39 +75,6 @@ def find_best_match(user_query):
     return df["Reasonings"].iloc[best_match_idx] if scores[best_match_idx] > 0.5 else ""
 #----------------------------------------------------------------------------------------------------------------------------------------
 # Prompt template
-fi_template = """
-
-    Vai trò: Bạn là DoctorQA, một trợ lý y tế thông minh được tạo ra bởi kiendoo4 với năng lực tư vấn chủ đề Y học
-
-    NGUYÊN TẮC CHÍNH:
-        1. Chính xác: 
-            Đây là các khái niệm Y học, CHỈ ĐƯỢC trả lời câu hỏi với các khái niệm Y học như sau:
-
-            {context}
-            
-            Đây là một số các tình trạng tương tự của các bệnh nhân đã từng mắc phải (sử dụng BM25 để truy vấn), dùng các kết quả này như một nguồn tham khảo cho việc trả lời câu hỏi:
-            
-            {similar_case}
-        
-        2. Giao tiếp: Rõ ràng - Khoa học
-        3. An toàn: Bảo vệ sức khỏe người dùng
-
-    CÂU HỎI: {input}
-
-    Let's think step by step. 
-
-    Nếu cảm thấy chưa thể kết luận được gì cho trường hợp của người dùng, hãy xác định những thông tin cần thiết khác và hỏi người dùng.
-    
-    Đừng đề cập những nguyên tắc một cách chi tiết khi trả lời.
-
-    CHÚ Ý: 
-            
-         - Tránh việc trả lời các câu hỏi không liên quan đến chủ đề Y học, hãy gợi ý người dùng hỏi các câu hỏi liên quan đến Y học!
-
-        - Nếu người hỏi có câu hỏi mang tính xúc phạm, lăng mạ, chửi tục, hãy từ chối trả lời!
-        
-"""
-
 engsub_template = "Translate to English, no Vietnamese or any other languages: {question}"
 vi_template = "Translate to Vietnamese, no other languages: {eng_response}"
 EXTRACTION_TEMPLATE = """Bạn là một trợ lý chuyên trích xuất các vấn đề cần tra cứu từ câu hỏi y học. 
@@ -167,11 +134,10 @@ def parse_llm_response(llm_response):
 
 
 #---------------------------------------------------------------------------------------------------------------------------------------
-def chain_of_thought(user_query):
+def chain_of_thought(user_query, messages, fi_template):
     # Step 1: Extract keyword or medical knowledge that need to be looked into the vectordb
     extraction_prompt = PromptTemplate(input_variables=["user_question"], template=EXTRACTION_TEMPLATE)   
     concept_response = llm2.invoke(extraction_prompt.invoke({"user_question": user_query}))
-    print("Raw LLM2 Response:", concept_response)
     parsed_concepts = parse_llm_response(concept_response)
     # Step 2: Extract information from vectordb
     context_parts = []
@@ -193,12 +159,11 @@ def chain_of_thought(user_query):
     vi_ans = vi_chain.run(eng_response=related_ans_from_MedQA)
 
     # Step 5: Use final_ans information to answer the question
-    fi_prompt = PromptTemplate(input_variables=["context", "similar_case", "input"], template=fi_template)
-    final_chain = LLMChain(llm=llm, prompt=fi_prompt)
-    final_ans = final_chain.run(context=context, similar_case = vi_ans, input=user_query)
+    final_chain = LLMChain(llm=llm, prompt=fi_template)
+    final_ans = final_chain.run(context=context, similar_case = vi_ans, input=user_query, messages = messages)
     
     return final_ans
 
 # Test the chain
-result = chain_of_thought("Tôi đang gặp vấn đề về Tiêu hóa, nôn ói liên tục")
-print(result)
+#result = chain_of_thought("Tôi đang gặp vấn đề về Tiêu hóa, nôn ói liên tục")
+#print(result)
