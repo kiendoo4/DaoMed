@@ -1,56 +1,129 @@
-# DoctorQA
+# DoctorQA - Vietnamese Medical Question Answering System
 
-DoctorQA is an AI-powered assistant designed to provide accurate and reliable answers to medical questions for Vietnamese. It helps users understand medical concepts, clarify concerns, and navigate health-related topics with ease.
+A medical question answering system with knowledge base management and user authentication features.
 
-![](./Image/intro.png)
+## Prerequisites
 
-# What I have done?
+- Docker and Docker Compose
+- Python 3.8+
+- Node.js 16+
 
-* Developed an intelligent medical assistant as an exploratory project, using RAG (Retrieval-Augmented
-Generation), LangChain framework with LLM (Gemini) to provide accurate healthcare information.
-* Crawled and processed 30,000+ medical documents from reputable sources into a Qdrant vector database.
-* Designed and maintained PostgreSQL database architecture for user management and conversation logging.
-* Designed web interfaces featuring login, registration, and DoctorQA chat functionality.
-* Built backend services with Flask to handle user login, chat interactions and API endpoints.
-* Leveraged Chain-of-thought prompting to enhance the accuracy and detail of AI-generated responses, resulting in more comprehensive and insightful outputs.
+## Quick Start
 
-#  Chat with DoctorQA
+### 1. Clone and Setup
 
-I asked a question from MedQA-USMLE dataset (which have been translated into Vietnamese)
+```bash
+git clone <repository-url>
+cd DoctorQA
+```
 
-![](./Image/answer.png)
+### 2. Pull Vietnamese Embedding Model
 
-The answer is correct :>
+```bash
+# Download the Vietnamese bi-encoder model
+git lfs install
+git clone https://huggingface.co/bkai-foundation-models/vietnamese-bi-encoder models/vietnamese-bi-encoder
+```
 
-Users can enhance DoctorQA's responses by applying the Chain-of-Thought strategy, which can be activated by clicking the lightbulb icon in the chat window. This approach, implemented in ```./CoT.py```, has the potential for further improvement as medical research continues to gain attention in the scientific community.
+### 3. Start Services
 
-# Technique
+```bash
+# Option 1: Using startup script (Recommended)
+chmod +x start.sh
+./start.sh
 
-## Crawling data
+# Option 2: Manual setup
+docker-compose up -d
+cd backend
+python init_db.py
+python run.py
 
-I crawled around 30000 trustworthy documents from ([MSDManual][1]) and ([HelloBacSi][2]). I have cleaned the data, chunked the documents, and converted them into vector representations using ([bkai-foundation-models/vietnamese-bi-encoder][3]) - a Sentence Embedding model before storing them in Qdrant. The detailed implementation can be found in the file ```./crawled-data-for-doctorqa.ipynb```.
+# In another terminal:
+cd frontend
+npm install
+npm start
+```
 
-[1]: https://www.msdmanuals.com/vi/professional "MSDManual"
+### 4. Access Application
 
-[2]: https://www.msdmanuals.com/vi/professional "HelloBacSi"
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5050
+- **Qdrant**: http://localhost:6333
+- **MinIO Console**: http://localhost:9101
 
-[3]: https://huggingface.co/bkai-foundation-models/vietnamese-bi-encoder "bkai-foundation-models/vietnamese-bi-encoder"
+## Services & Credentials
 
-## AI-Powered Enhancements
+### Services
+- **Frontend**: React.js application
+- **Backend**: FastAPI with SQLite database
+- **Qdrant**: Vector database for embeddings (local Docker instance)
+- **MinIO**: Object storage for files
 
-To improve DoctorQA’s reasoning and response quality, I have integrated several advanced AI techniques:
+### Database Credentials
+- **MinIO Console**:
+  - Username: `daomed`
+  - Password: `daomed_secret`
+- **PostgreSQL**:
+  - Database: `daomed_db`
+  - Username: `daomed`
+  - Password: `daomed_pass`
 
-* LangChain for Workflow Orchestration: I used LangChain to manage and streamline interactions between the language model (Gemini-1.5) and the database (Qdrant for medical knowledge and PostgreSQL for chatting history), ensuring efficient retrieval, processing of relevant medical information and chatting performance.
-* LLM Integration: Gemini-1.5 powers DoctorQA, enabling it to understand and generate context-aware responses.
-* Chain-of-Thought Reasoning: Users can activate the Chain-of-Thought (CoT) strategy by clicking the lightbulb icon in the chat.
+## Features
 
-## PostgreSQL for User and Data Management
+- User authentication (login/register)
+- Knowledge base management
+- Vietnamese medical Q&A
+- Conversation history
+- File upload and management
 
-DoctorQA leverages PostgreSQL for efficient storage and management of user interactions and structured medical data:
+## Stop Services
 
-* User Management: PostgreSQL stores user sessions, preferences, and query history, enabling a personalized experience.
-* Scalability & Performance: The database architecture supports high-performance querying, allowing seamless interaction with large-scale medical datasets.
+```bash
+# Option 1: Using stop script (Recommended)
+./stop.sh
 
-# What is next?
+# Option 2: Manual stop
+docker-compose down
+pkill -f "python run.py"
+pkill -f "react-scripts start"
+```
 
-In the near future, as DoctorQA becomes more refined, I will publish a demo video showcasing how to use it. Additionally, I aim to learn and integrate Agent-based techniques to further enhance the system.
+## Development
+
+### Backend
+```bash
+cd backend
+pip install -r requirements.txt
+python run.py
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm start
+```
+
+## Troubleshooting
+
+### Proxy Error
+If you see "Proxy error: Could not proxy request":
+1. Make sure the backend is running on port 5050
+2. Check that the virtual environment is activated
+3. Verify all dependencies are installed
+
+### Port Already in Use
+If ports are already in use:
+1. Stop existing services: `./stop.sh`
+2. Check for running processes: `lsof -i :3000` or `lsof -i :5050`
+3. Kill conflicting processes if needed
+
+## API Endpoints
+
+- `POST /api/chat/login` - User login
+- `POST /api/chat/register` - User registration
+- `POST /api/chat/logout` - User logout
+- `POST /api/chat/send` - Send chat message
+- `GET /api/chat/history` - Get chat history
+- `GET /api/chat/conversations` - Get conversations list
+- `GET /api/chat/dialogs` - Get dialogs list
