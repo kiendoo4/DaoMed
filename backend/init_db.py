@@ -25,22 +25,17 @@ def init_database():
         );
     ''')
     
-    # Tạo bảng conversations
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS conversations (
-            id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
-            topic VARCHAR(255),
-            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
+    # Removed conversations table as it's not used
     
     # Tạo bảng dialogs
     cur.execute('''
         CREATE TABLE IF NOT EXISTS dialogs (
             id SERIAL PRIMARY KEY,
-            conversation_id INT REFERENCES conversations(id) ON DELETE CASCADE,
             name VARCHAR(255),
+            system_prompt TEXT DEFAULT 'You are a knowledgeable and helpful chatbot specializing in Traditional Eastern Medicine.',
+            model_config JSONB DEFAULT '{"model": "gemini-2.0-flash", "temperature": 0.7, "max_tokens": 1000}',
+            max_chunks INTEGER DEFAULT 8,
+            cosine_threshold FLOAT DEFAULT 0.5,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     ''')

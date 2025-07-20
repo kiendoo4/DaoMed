@@ -74,7 +74,13 @@ def chat_with_kb(dialog_id):
                 'timestamp': bot_msg['timestamp'].isoformat()
             },
             'search_results_count': rag_result.get('search_results_count', 0),
-            'sources': rag_result.get('sources', [])
+            'sources': rag_result.get('sources', []),
+            'rag_details': {
+                'query': message,
+                'chunks_used': rag_result.get('search_results', []),
+                'context_used': rag_result.get('context_used', ''),
+                'used_rag': True  # RAG luôn được sử dụng, chỉ là có thể không tìm thấy chunks
+            }
         }), 200
         
     except Exception as e:

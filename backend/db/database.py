@@ -69,20 +69,7 @@ def get_chat_history(cur, dialog_id, limit=50):
     chat_history = cur.fetchall()
     return [{"role": "user" if row[2] == "user" else "assistant", "content": row[3], "timestamp": row[4].isoformat()} for row in chat_history]
 
-def create_conversations_table():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS conversations (
-            id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
-            topic VARCHAR(255),
-            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
-    conn.commit()
-    cur.close()
-    conn.close()
+# Removed create_conversations_table function as conversations table is not used
 
 def create_dialogs_table():
     conn = get_connection()
@@ -90,10 +77,11 @@ def create_dialogs_table():
     cur.execute('''
         CREATE TABLE IF NOT EXISTS dialogs (
             id SERIAL PRIMARY KEY,
-            conversation_id INT REFERENCES conversations(id) ON DELETE CASCADE,
             name VARCHAR(255),
             system_prompt TEXT DEFAULT 'You are a knowledgeable and helpful chatbot specializing in Traditional Eastern Medicine.',
-            model_config JSONB DEFAULT '{"model": "gemini-2.0-flash-exp", "temperature": 0.7, "max_tokens": 1000}',
+            model_config JSONB DEFAULT '{"model": "gemini-2.0-flash", "temperature": 0.7, "max_tokens": 1000}',
+            max_chunks INTEGER DEFAULT 8,
+            cosine_threshold FLOAT DEFAULT 0.5,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     ''')
@@ -105,11 +93,9 @@ def create_messages_table():
     conn = get_connection()
     cur = conn.cursor()
     
-    # Drop existing table if it has wrong schema
-    cur.execute("DROP TABLE IF EXISTS messages CASCADE;")
-    
+    # Chỉ tạo table nếu chưa tồn tại, không drop table cũ
     cur.execute('''
-        CREATE TABLE messages (
+        CREATE TABLE IF NOT EXISTS messages (
             id SERIAL PRIMARY KEY,
             dialog_id INT REFERENCES dialogs(id) ON DELETE CASCADE,
             sender VARCHAR(50),
@@ -121,39 +107,28 @@ def create_messages_table():
     cur.close()
     conn.close()
 
-def create_conversation(user_id, topic=None):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        INSERT INTO conversations (user_id, topic)
-        VALUES (%s, %s)
-        RETURNING id, started_at;
-    ''', (user_id, topic))
-    row = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {'id': row[0], 'started_at': row[1]}
+# Removed create_conversation function as conversations table is not used
 
-def create_dialog(conversation_id, name=None, system_prompt=None, model_config=None, max_chunks=8, cosine_threshold=0.5):
+def create_dialog(name=None, system_prompt=None, model_config=None, max_chunks=8, cosine_threshold=0.5):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO dialogs (conversation_id, name, system_prompt, model_config, max_chunks, cosine_threshold)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id, created_at, system_prompt, model_config, max_chunks, cosine_threshold;
-    ''', (conversation_id, name, system_prompt, model_config, max_chunks, cosine_threshold))
+        INSERT INTO dialogs (name, system_prompt, model_config, max_chunks, cosine_threshold)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id, name, created_at, system_prompt, model_config, max_chunks, cosine_threshold;
+    ''', (name, system_prompt, model_config, max_chunks, cosine_threshold))
     row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
     return {
         'id': row[0], 
-        'created_at': row[1],
-        'system_prompt': row[2],
-        'model_config': row[3],
-        'max_chunks': row[4],
-        'cosine_threshold': row[5]
+        'name': row[1],
+        'created_at': row[2],
+        'system_prompt': row[3],
+        'model_config': row[4],
+        'max_chunks': row[5],
+        'cosine_threshold': row[6]
     }
 
 def add_message(dialog_id, sender, message):
@@ -170,35 +145,9 @@ def add_message(dialog_id, sender, message):
     conn.close()
     return {'id': row[0], 'timestamp': row[1]}
 
-def get_conversations_by_user(user_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT c.id, c.topic, c.started_at, 
-               COUNT(d.id) as dialog_count,
-               MAX(d.created_at) as last_dialog_at
-        FROM conversations c
-        LEFT JOIN dialogs d ON c.id = d.conversation_id
-        WHERE c.user_id = %s
-        GROUP BY c.id, c.topic, c.started_at
-        ORDER BY c.started_at DESC
-    ''', (user_id,))
-    rows = cur.fetchall()
-    conversations = [
-        {
-            'id': row[0],
-            'topic': row[1],
-            'started_at': row[2].isoformat() if row[2] else None,
-            'dialog_count': row[3],
-            'last_dialog_at': row[4].isoformat() if row[4] else None
-        }
-        for row in rows
-    ]
-    cur.close()
-    conn.close()
-    return conversations
+# Removed get_conversations_by_user function as conversations table is not used
 
-def get_dialogs_by_conversation(conversation_id):
+def get_dialogs_by_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('''
@@ -207,10 +156,9 @@ def get_dialogs_by_conversation(conversation_id):
                MAX(m.timestamp) as last_message_at
         FROM dialogs d
         LEFT JOIN messages m ON d.id = m.dialog_id
-        WHERE d.conversation_id = %s
         GROUP BY d.id, d.name, d.created_at
         ORDER BY d.created_at DESC
-    ''', (conversation_id,))
+    ''')
     rows = cur.fetchall()
     dialogs = [
         {
@@ -226,36 +174,16 @@ def get_dialogs_by_conversation(conversation_id):
     conn.close()
     return dialogs
 
-def get_conversation_by_id(conversation_id, user_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        SELECT id, topic, started_at
-        FROM conversations 
-        WHERE id = %s AND user_id = %s
-    ''', (conversation_id, user_id))
-    row = cur.fetchone()
-    if row:
-        conversation = {
-            'id': row[0],
-            'topic': row[1],
-            'started_at': row[2].isoformat() if row[2] else None
-        }
-    else:
-        conversation = None
-    cur.close()
-    conn.close()
-    return conversation
+# Removed get_conversation_by_id function as conversations table is not used
 
 def get_dialog_by_id(dialog_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('''
-        SELECT d.id, d.name, d.created_at, d.system_prompt, d.model_config, d.max_chunks, d.cosine_threshold, c.id as conversation_id, c.user_id
+        SELECT d.id, d.name, d.created_at, d.system_prompt, d.model_config, d.max_chunks, d.cosine_threshold
         FROM dialogs d
-        JOIN conversations c ON d.conversation_id = c.id
-        WHERE d.id = %s AND c.user_id = %s
-    ''', (dialog_id, user_id))
+        WHERE d.id = %s
+    ''', (dialog_id,))
     row = cur.fetchone()
     if row:
         dialog = {
@@ -265,8 +193,7 @@ def get_dialog_by_id(dialog_id, user_id):
             'system_prompt': row[3],
             'model_config': row[4],
             'max_chunks': row[5],
-            'cosine_threshold': row[6],
-            'conversation_id': row[7]
+            'cosine_threshold': row[6]
         }
     else:
         dialog = None
@@ -301,14 +228,12 @@ def update_dialog_config(dialog_id, user_id, system_prompt=None, model_config=No
     if not updates:
         return False
     
-    params.extend([dialog_id, user_id])
+    params.append(dialog_id)
     
     query = f'''
         UPDATE dialogs 
         SET {', '.join(updates)}
-        WHERE id = %s AND conversation_id IN (
-            SELECT id FROM conversations WHERE user_id = %s
-        )
+        WHERE id = %s
     '''
     
     cur.execute(query, params)
@@ -318,28 +243,15 @@ def update_dialog_config(dialog_id, user_id, system_prompt=None, model_config=No
     conn.close()
     return updated
 
-def delete_conversation(conversation_id, user_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        DELETE FROM conversations 
-        WHERE id = %s AND user_id = %s
-    ''', (conversation_id, user_id))
-    deleted = cur.rowcount > 0
-    conn.commit()
-    cur.close()
-    conn.close()
-    return deleted
+# Removed delete_conversation function as conversations table is not used
 
 def delete_dialog(dialog_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('''
         DELETE FROM dialogs 
-        WHERE id = %s AND conversation_id IN (
-            SELECT id FROM conversations WHERE user_id = %s
-        )
-    ''', (dialog_id, user_id))
+        WHERE id = %s
+    ''', (dialog_id,))
     deleted = cur.rowcount > 0
     conn.commit()
     cur.close()

@@ -174,7 +174,8 @@ Hãy trả lời dựa trên kiến thức y học cổ truyền."""
                 'response': response,
                 'context_used': context,
                 'sources': [result['source'] for result in search_results],
-                'search_results_count': len(search_results)
+                'search_results_count': len(search_results),
+                'search_results': search_results
             }
             
         except Exception as e:
@@ -183,7 +184,8 @@ Hãy trả lời dựa trên kiến thức y học cổ truyền."""
                 'response': f"Xin lỗi, có lỗi xảy ra trong quá trình xử lý: {str(e)}",
                 'context_used': "",
                 'sources': [],
-                'search_results_count': 0
+                'search_results_count': 0,
+                'search_results': []
             }
 
     def get_system_prompt(self) -> str:

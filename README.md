@@ -54,10 +54,11 @@ npm start
 ## Services & Credentials
 
 ### Services
-- **Frontend**: React.js application
-- **Backend**: FastAPI with SQLite database
+- **Frontend**: React.js application with Ant Design
+- **Backend**: Flask with PostgreSQL database
 - **Qdrant**: Vector database for embeddings (local Docker instance)
 - **MinIO**: Object storage for files
+- **PostgreSQL**: Primary database for user sessions and chat data
 
 ### Database Credentials
 - **MinIO Console**:
@@ -67,14 +68,39 @@ npm start
   - Database: `daomed_db`
   - Username: `daomed`
   - Password: `daomed_pass`
+  - Host: `localhost`
+  - Port: `5432`
+
+## Database Schema
+
+### Tables
+- **dialogs**: Stores user dialogs/conversations
+  - `id`: Primary key
+  - `name`: Dialog name
+  - `user_id`: User identifier
+  - `created_at`: Creation timestamp
+  - `updated_at`: Last update timestamp
+
+- **messages**: Stores chat messages
+  - `id`: Primary key
+  - `dialog_id`: Foreign key to dialogs table
+  - `sender`: Message sender ('user' or 'assistant')
+  - `content`: Message content
+  - `timestamp`: Message timestamp
+
+- **users**: User authentication (managed by Flask-Session)
+- **sessions**: User sessions (managed by Flask-Session)
 
 ## Features
 
 - User authentication (login/register)
-- Knowledge base management
-- Vietnamese medical Q&A
-- Conversation history
-- File upload and management
+- Knowledge base management with file upload
+- Medical traditional Q&A using RAG
+- Dialog-based conversation system
+- Persistent chat history across sessions
+- File upload and management via MinIO
+- Vector search using Qdrant
+- RAG evaluation
 
 ## Stop Services
 
@@ -118,12 +144,39 @@ If ports are already in use:
 2. Check for running processes: `lsof -i :3000` or `lsof -i :5050`
 3. Kill conflicting processes if needed
 
+### Database Issues
+If messages disappear after restart:
+1. Ensure PostgreSQL container is running: `docker ps`
+2. Check database connectivity
+3. Verify database schema is properly initialized
+
 ## API Endpoints
 
+### Authentication
 - `POST /api/chat/login` - User login
 - `POST /api/chat/register` - User registration
 - `POST /api/chat/logout` - User logout
+
+### Chat & Dialogs
 - `POST /api/chat/send` - Send chat message
-- `GET /api/chat/history` - Get chat history
-- `GET /api/chat/conversations` - Get conversations list
-- `GET /api/chat/dialogs` - Get dialogs list
+- `GET /api/chat/history/<dialog_id>` - Get chat history for specific dialog
+- `GET /api/chat/dialogs` - Get user's dialogs list
+- `POST /api/chat/dialogs` - Create new dialog
+- `PUT /api/chat/dialogs/<dialog_id>` - Update dialog name
+- `DELETE /api/chat/dialogs/<dialog_id>` - Delete dialog
+
+### Knowledge Base
+- `GET /api/kb/files` - Get uploaded files
+- `POST /api/kb/upload` - Upload file to knowledge base
+- `DELETE /api/kb/files/<filename>` - Delete file from knowledge base
+
+### Health Check
+- `GET /api/health` - Backend health status
+
+## Recent Changes
+
+- **Database Migration**: Switched from SQLite to PostgreSQL for better scalability
+- **Schema Update**: Removed `conversations` table, simplified to `dialogs` and `messages` tables
+- **Session Management**: Implemented persistent sessions using Flask-Session with PostgreSQL
+- **UI Improvements**: Enhanced dialog creation flow and chat window scrolling
+- **API Enhancements**: Improved error handling and response consistency

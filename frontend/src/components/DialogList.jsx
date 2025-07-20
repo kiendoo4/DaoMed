@@ -3,16 +3,17 @@ import { List, Button, Modal, Input, message, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../api';
 
-export default function DialogList({ onSelect, selectedId }) {
+export default function DialogList({ onSelect, selectedId, reloadKey }) {
   const [dialogs, setDialogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
+  const [creatingDialog, setCreatingDialog] = useState(false);
 
   useEffect(() => {
     fetchDialogs();
-  }, []);
+  }, [reloadKey]);
 
   const fetchDialogs = async () => {
     try {
@@ -40,19 +41,32 @@ export default function DialogList({ onSelect, selectedId }) {
     }
 
     try {
+      setCreatingDialog(true);
+      console.log('Creating dialog with name:', newName.trim());
+      
       // Tạo dialog trực tiếp (không cần conversation)
       const response = await api.post('/api/chat/dialogs', {
         name: newName.trim()
       });
       
       console.log('Create dialog response:', response.data);
-      setDialogs([response.data.dialog, ...dialogs]);
-      setCreateModalVisible(false);
-      setNewName('');
+      const newDialog = response.data.dialog;
+      
+      // Đóng modal trước
+      resetModal();
+      
+      // Cập nhật danh sách dialogs
+      setDialogs([newDialog, ...dialogs]);
+      
+      // Tự động chọn dialog mới tạo
+      onSelect(newDialog.id);
+      
       message.success('Dialog created successfully!');
     } catch (err) {
       console.error('Error creating dialog:', err);
       message.error(`Failed to create dialog: ${err.message}`);
+    } finally {
+      setCreatingDialog(false);
     }
   };
 
@@ -75,6 +89,11 @@ export default function DialogList({ onSelect, selectedId }) {
     if (!dateString) return 'Unknown';
     const date = new Date(dateString);
     return date.toLocaleString('vi-VN');
+  };
+
+  const resetModal = () => {
+    setCreateModalVisible(false);
+    setNewName('');
   };
 
   if (loading) {
@@ -153,18 +172,20 @@ export default function DialogList({ onSelect, selectedId }) {
         title="Tạo Dialog Mới"
         open={createModalVisible}
         onOk={createDialog}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          setNewName('');
-        }}
+        onCancel={resetModal}
         okText="Tạo"
         cancelText="Hủy"
+        destroyOnClose={true}
+        maskClosable={false}
+        keyboard={false}
+        confirmLoading={creatingDialog}
       >
         <Input
           placeholder="Nhập tên dialog..."
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onPressEnter={createDialog}
+          autoFocus
         />
       </Modal>
     </div>

@@ -23,6 +23,7 @@ export default function MainInterface({ user, onLogout }) {
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [configForm] = Form.useForm();
   const [configLoading, setConfigLoading] = useState(false);
+  const [dialogListReloadKey, setDialogListReloadKey] = useState(0);
 
   const handleLogout = () => {
     onLogout();
@@ -30,6 +31,11 @@ export default function MainInterface({ user, onLogout }) {
 
   const handleDialogSelect = (dialogId) => {
     setSelectedDialogId(dialogId);
+  };
+
+  // Callback khi gửi message thành công
+  const handleMessageSent = () => {
+    setDialogListReloadKey(k => k + 1);
   };
 
   const handleConfigSubmit = async (values) => {
@@ -264,6 +270,7 @@ If a question cannot be sufficiently answered using the available knowledge base
             <DialogList 
               onSelect={handleDialogSelect}
               selectedId={selectedDialogId}
+              reloadKey={dialogListReloadKey}
             />
           </Card>
         </Col>
@@ -271,35 +278,21 @@ If a question cannot be sufficiently answered using the available knowledge base
         {/* Chat Window - Cột lớn */}
         <Col xs={24} md={18} lg={19} style={{ height: '100%' }}>
           <Card 
-            title={
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Chat</span>
-                {selectedDialogId && (
-                  <Button 
-                    type="primary" 
-                    size="small"
-                    icon={<SettingOutlined />}
-                    onClick={showConfigModal}
-                  >
-                    Config
-                  </Button>
-                )}
-              </div>
-            }
             style={{ 
               height: '100%', 
-              display: 'flex',
-              flexDirection: 'column'
-            }}
+              display: 'flex', 
+              flexDirection: 'column', 
+              padding: 0 
+            }} 
             bodyStyle={{ 
-              padding: '0', 
-              flex: 1,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              padding: 0,
+              overflow: 'hidden' // Đảm bảo Card body không scroll
             }}
           >
-            <ChatWindow dialogId={selectedDialogId} />
+            <ChatWindow dialogId={selectedDialogId} onMessageSent={handleMessageSent} />
           </Card>
         </Col>
       </Row>
