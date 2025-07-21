@@ -13,40 +13,51 @@
 git clone <repository-url>
 ```
 
-### 2. Download Vietnamese Embedding Model (Bắt buộc)
-
-**Chạy script tự động (bắt buộc, không dùng git clone/git lfs):**
+### 2. Setup Python Virtual Environment
 
 ```bash
-cd backend/models
-python download_embedding_model.py
-cd ../..
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Download embedding model
+
+```bash
+python backend/models/download_embedding_model.py
 ```
 
 > **Lưu ý:**
+> - Script này sẽ tự động lưu model vào thư mục `models/vietnamese-bi-encoder` ở gốc project.
 > - Phải chạy script này trước khi build Docker hoặc chạy backend.
-> - Nếu chạy trên Docker, model phải có sẵn trong thư mục `backend/models/vietnamese-bi-encoder` trước khi build Docker image.
+> - Nếu chạy trên Docker, model phải có sẵn trong thư mục `models/vietnamese-bi-encoder` trước khi build Docker image.
 > - Nếu chạy local, cũng phải pull model về đúng thư mục này.
 
-### 3. Setup Dependencies
+### 3. Cài đặt Dependencies
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install Python dependencies
+# Đảm bảo vẫn đang activate venv
 cd backend
 pip install -r requirements.txt
 cd ..
 
-# Install Node.js dependencies  
 cd frontend
 npm install
 cd ..
 ```
 
-### 4. Initialize Database
+### 4. Build Docker image
+
+```bash
+docker-compose build backend
+```
+
+### 5. Start Docker services
+
+```bash
+docker-compose up -d
+```
+
+### 6. Initialize Database (sau khi Docker đã chạy)
 
 ```bash
 cd backend
@@ -55,13 +66,7 @@ python init_db.py
 cd ..
 ```
 
-### 5. Build Docker image (nếu dùng Docker)
-
-```bash
-docker-compose build backend
-```
-
-### 6. Start Services
+### 7. Start app
 
 **Option 1: Using startup script (Recommended)**
 ```bash
@@ -71,7 +76,6 @@ chmod +x start.sh
 
 **Option 2: Manual setup**
 ```bash
-docker-compose up -d
 cd backend
 python run.py
 # In another terminal:
