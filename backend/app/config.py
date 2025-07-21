@@ -30,4 +30,4 @@ class Config:
     MINIO_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME', 'daomed-files')
     
     # Model path - ưu tiên environment variables từ Docker
-    MODEL_PATH = os.getenv('MODEL_PATH', 'models/vietnamese-bi-encoder') 
+    MODEL_PATH = '../../models/vietnamese-bi-encoder'

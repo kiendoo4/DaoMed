@@ -1,12 +1,9 @@
-# DoctorQA - Vietnamese Medical Question Answering System
-
-A medical question answering system with knowledge base management and user authentication features.
-
 ## Prerequisites
 
 - Docker and Docker Compose
 - Python 3.8+
 - Node.js 16+
+- **Git LFS** (for model download)
 
 ## Quick Start
 
@@ -14,38 +11,75 @@ A medical question answering system with knowledge base management and user auth
 
 ```bash
 git clone <repository-url>
-cd DoctorQA
 ```
 
-### 2. Pull Vietnamese Embedding Model
+### 2. Download Vietnamese Embedding Model (Bắt buộc)
+
+**Chạy script tự động (bắt buộc, không dùng git clone/git lfs):**
 
 ```bash
-# Download the Vietnamese bi-encoder model
-git lfs install
-git clone https://huggingface.co/bkai-foundation-models/vietnamese-bi-encoder models/vietnamese-bi-encoder
+cd backend/models
+python download_embedding_model.py
+cd ../..
 ```
 
-### 3. Start Services
+> **Lưu ý:**
+> - Phải chạy script này trước khi build Docker hoặc chạy backend.
+> - Nếu chạy trên Docker, model phải có sẵn trong thư mục `backend/models/vietnamese-bi-encoder` trước khi build Docker image.
+> - Nếu chạy local, cũng phải pull model về đúng thư mục này.
+
+### 3. Setup Dependencies
 
 ```bash
-# Option 1: Using startup script (Recommended)
-chmod +x start.sh
-./start.sh
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
-# Option 2: Manual setup
-docker-compose up -d
+# Install Python dependencies
 cd backend
-python init_db.py
-python run.py
+pip install -r requirements.txt
+cd ..
 
-# In another terminal:
+# Install Node.js dependencies  
 cd frontend
 npm install
+cd ..
+```
+
+### 4. Initialize Database
+
+```bash
+cd backend
+source ../.venv/bin/activate
+python init_db.py
+cd ..
+```
+
+### 5. Build Docker image (nếu dùng Docker)
+
+```bash
+docker-compose build backend
+```
+
+### 6. Start Services
+
+**Option 1: Using startup script (Recommended)**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+**Option 2: Manual setup**
+```bash
+docker-compose up -d
+cd backend
+python run.py
+# In another terminal:
+cd frontend
 npm start
 ```
 
-### 4. Access Application
-
+### 7. Access Application
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5050
 - **Qdrant**: http://localhost:6333
