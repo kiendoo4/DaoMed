@@ -6,6 +6,7 @@ from .chat import chat_bp
 from .kb import kb_bp
 from .config import Config
 from .dialog import dialog_bp
+from .eval import eval_pb
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
@@ -32,6 +33,7 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 app.register_blueprint(chat_bp, url_prefix='/api/chat')
 app.register_blueprint(kb_bp, url_prefix='/api/kb')
 app.register_blueprint(dialog_bp, url_prefix='/api/dialog')
+app.register_blueprint(eval_pb, url_prefix='/api/eval')
 
 # Enable CORS
 CORS(app, supports_credentials=True, origins=['http://localhost:3000'])
